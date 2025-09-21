@@ -1,0 +1,74 @@
+name: Build and Release Signed APK
+
+on:
+  push:
+    tags:
+      - 'r*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Check signing secrets
+        run: |
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ] && [ -n "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" ] && [ -n "${{ secrets.ANDROID_KEY_ALIAS }}" ] && [ -n "${{ secrets.ANDROID_KEY_PASSWORD }}" ]; then
+            echo "SIGNING_READY=true" >> $GITHUB_ENV
+          else
+            echo "SIGNING_READY=false" >> $GITHUB_ENV
+            echo "Signing secrets not provided. Skipping release build." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Restore keystore from secret
+        if: env.SIGNING_READY == 'true'
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > notescanner-release.jks
+          {
+            echo "storeFile=notescanner-release.jks";
+            echo "storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}";
+            echo "keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}";
+            echo "keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}";
+          } > keystore.properties
+
+      - name: Make Gradle executable
+        if: env.SIGNING_READY == 'true'
+        run: chmod +x gradlew
+
+      - name: Build release APK (signed)
+        if: env.SIGNING_READY == 'true'
+        run: ./gradlew :app:assembleRelease --stacktrace
+
+      - name: Upload artifact (release APK)
+        if: env.SIGNING_READY == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: app/build/outputs/apk/release/app-release.apk
+
+      - name: Create GitHub Release (on tag)
+        if: env.SIGNING_READY == 'true' && startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: app/build/outputs/apk/release/app-release.apk
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
