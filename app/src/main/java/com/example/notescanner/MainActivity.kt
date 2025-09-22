@@ -1,11 +1,26 @@
 package com.example.notescanner
 
 import android.os.Bundle
+import android.Manifest
+import android.content.pm.PackageManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.camera.core.CameraSelector
@@ -14,11 +29,23 @@ import androidx.camera.core.ImageCaptureException
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.LifecycleOwner
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.camera.view.PreviewView
 import android.widget.FrameLayout
 import androidx.compose.runtime.saveable.rememberSaveable
 import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import android.graphics.BitmapFactory
+import com.example.notescanner.data.InvoiceStore
+import com.example.notescanner.model.InvoiceRecord
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.io.File
 
 class MainActivity : ComponentActivity() {
     private lateinit var imageCapture: ImageCapture
@@ -41,19 +68,112 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun NoteScannerApp() {
     val context = LocalContext.current
+    val store = remember { InvoiceStore(context) }
     var ocrResult by remember { mutableStateOf("") }
     var isCameraStarted by rememberSaveable { mutableStateOf(false) }
     var lastPhotoPath by rememberSaveable { mutableStateOf("") }
     var lastExcelPath by rememberSaveable { mutableStateOf("") }
+    var cameraPermissionDenied by rememberSaveable { mutableStateOf(false) }
+    var showList by rememberSaveable { mutableStateOf(false) }
+    var showOverview by rememberSaveable { mutableStateOf(false) }
+    var records by remember { mutableStateOf(store.loadAll()) }
+    fun refreshRecords() { records = store.loadAll() }
 
-    Column(modifier = Modifier.padding(16.dp)) {
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            cameraPermissionDenied = false
+            isCameraStarted = true
+        } else {
+            cameraPermissionDenied = true
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Background image if present: place a drawable named bg_invoice in res/drawable
+        val bgResId = remember {
+            context.resources.getIdentifier("bg_invoice", "drawable", context.packageName)
+        }
+        if (bgResId != 0) {
+            Image(
+                painter = painterResource(id = bgResId),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+                alpha = 0.15f
+            )
+        }
+        // Centered receipt watermark
+        val receiptId = remember { context.resources.getIdentifier("ic_receipt_bg", "drawable", context.packageName) }
+        if (receiptId != 0) {
+            Image(
+                painter = painterResource(id = receiptId),
+                contentDescription = null,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(200.dp),
+                contentScale = ContentScale.Fit,
+                alpha = 0.10f
+            )
+        }
+
+        Column(modifier = Modifier.padding(16.dp)) {
         Text("Velkomin í nótuskanna!", modifier = Modifier.padding(bottom = 16.dp))
 
-        if (!isCameraStarted) {
-            Button(onClick = { isCameraStarted = true }) {
-                Text("Opna myndavél")
+            // Big primary scan button
+            Button(
+                onClick = {
+                    showList = false
+                    showOverview = false
+                    val granted = ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.CAMERA
+                    ) == PackageManager.PERMISSION_GRANTED
+                    if (granted) {
+                        isCameraStarted = true
+                    } else {
+                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+            ) {
+                Text("Skanna nótu")
             }
-        } else {
+
+            Spacer(modifier = Modifier.size(12.dp))
+
+            // Secondary navigation buttons
+            Row(modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(onClick = {
+                    showOverview = true; showList = false; isCameraStarted = false
+                }, modifier = Modifier.weight(1f)) { Text("Skoða yfirlit") }
+                Spacer(modifier = Modifier.size(8.dp))
+                OutlinedButton(onClick = {
+                    showList = true; showOverview = false; isCameraStarted = false
+                }, modifier = Modifier.weight(1f)) { Text("Skoða nótur") }
+            }
+
+            if (showOverview) {
+                OverviewScreen(records = records)
+                return@Column
+            }
+            if (showList) {
+                InvoiceListScreen(records = records)
+                return@Column
+            }
+
+            if (!isCameraStarted) {
+                // Extra prompt if permission denied earlier
+            if (cameraPermissionDenied) {
+                Text(
+                    "Vantar leyfi fyrir myndavél. Leyfðu í stillingum og prófaðu aftur.",
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+            } else {
             CameraPreview(
                 onPhotoCaptured = { photoPath ->
                     lastPhotoPath = photoPath
@@ -61,7 +181,8 @@ fun NoteScannerApp() {
 
                     // Vista mynd í möppu eftir mánuði
                     val now = java.time.LocalDate.now()
-                    val monthFolder = File(context.filesDir, now.toString().substring(0,7))
+                    val monthKey = now.toString().substring(0,7)
+                    val monthFolder = File(context.filesDir, monthKey)
                     if (!monthFolder.exists()) monthFolder.mkdirs()
                     val destFile = File(monthFolder, File(photoPath).name)
                     File(photoPath).copyTo(destFile, overwrite = true)
@@ -69,18 +190,33 @@ fun NoteScannerApp() {
                     // OCR á mynd
                     OcrUtil.recognizeTextFromImage(context, destFile) { text ->
                         ocrResult = text
-                        // Hér má bæta við regex til að finna haus og upphæð
-                        val haus = text.lines().firstOrNull() ?: "Óþekkt haus"
-                        val upphæð = Regex("[0-9]+[.,]?[0-9]* ?kr").find(text)?.value ?: "Óþekkt upphæð"
+                        // Greina seljanda, upphæð og VSK
+                        val parsed = OcrUtil.parse(text)
+                        val vendor = parsed.vendor ?: text.lines().firstOrNull()?.take(64) ?: "Óþekkt"
+                        val amount = parsed.amount ?: 0.0
+                        val vat = parsed.vat ?: 0.0
                         val dagsetning = now.toString()
 
                         // Skrá í Excel (bæta við nýja línu)
                         val excelFile = File(context.filesDir, "reikningar.xlsx")
                         ExcelUtil.appendToExcel(
-                            listOf(destFile.name, dagsetning, haus, upphæð),
+                            listOf(destFile.name, dagsetning, monthKey, vendor, String.format("%.2f", amount), String.format("%.2f", vat)),
                             excelFile
                         )
                         lastExcelPath = excelFile.absolutePath
+
+                        // Vista í JSON gagnagrunn
+                        val record = InvoiceRecord(
+                            id = System.currentTimeMillis(),
+                            date = dagsetning,
+                            monthKey = monthKey,
+                            vendor = vendor,
+                            amount = amount,
+                            vat = vat,
+                            imagePath = destFile.absolutePath
+                        )
+                        store.add(record)
+                        refreshRecords()
                     }
                 }
             )
@@ -111,35 +247,137 @@ fun NoteScannerApp() {
                 Text("Senda Excel í email")
             }
         }
+        }
+
+        // Footer branding at bottom
+        Text(
+            text = "IceVeflausnir",
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 12.dp),
+            style = MaterialTheme.typography.bodySmall
+        )
+    }
+}
+
+@Composable
+fun InvoiceListScreen(records: List<InvoiceRecord>) {
+    val grouped = remember(records) { records.groupBy { it.monthKey }.toSortedMap(compareByDescending { it }) }
+    LazyColumn(modifier = Modifier.padding(top = 16.dp)) {
+        grouped.forEach { (month, list) ->
+            item(key = "header-$month") {
+                Text(text = month, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(vertical = 8.dp))
+            }
+            items(list, key = { it.id }) { rec ->
+                Row(modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)) {
+                    val thumb = remember(rec.imagePath) { loadThumbnail(rec.imagePath, 128) }
+                    if (thumb != null) {
+                        Image(bitmap = thumb.asImageBitmap(), contentDescription = null, modifier = Modifier.size(64.dp))
+                    } else {
+                        BoxPlaceholder()
+                    }
+                    Spacer(modifier = Modifier.size(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(rec.vendor)
+                        Text("Dagsetning: ${rec.date}")
+                        Text("Upphæð: ${String.format("%.2f", rec.amount)} kr  |  VSK: ${String.format("%.2f", rec.vat)} kr")
+                    }
+                }
+                Divider()
+            }
+        }
+    }
+}
+
+@Composable
+private fun BoxPlaceholder() {
+    Surface(tonalElevation = 1.dp) { Spacer(modifier = Modifier.size(64.dp)) }
+}
+
+private fun loadThumbnail(path: String, maxDim: Int): android.graphics.Bitmap? {
+    return try {
+        val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(path, opts)
+        val (w, h) = opts.outWidth to opts.outHeight
+        if (w <= 0 || h <= 0) return null
+        val maxSide = maxOf(w, h)
+        var sample = 1
+        while ((maxSide / sample) > maxDim) sample *= 2
+        val opts2 = BitmapFactory.Options().apply { inSampleSize = sample }
+        BitmapFactory.decodeFile(path, opts2)
+    } catch (e: Exception) {
+        null
+    }
+}
+
+@Composable
+fun OverviewScreen(records: List<InvoiceRecord>) {
+    val grouped = remember(records) { records.groupBy { it.monthKey }.toSortedMap(compareByDescending { it }) }
+    LazyColumn(modifier = Modifier.padding(top = 16.dp)) {
+        grouped.forEach { (month, list) ->
+            val total = list.sumOf { it.amount }
+            val totalVat = list.sumOf { it.vat }
+            item(key = "ovh-$month") {
+                Column(modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)) {
+                    Text(text = month, style = MaterialTheme.typography.titleMedium)
+                    Text("Fjöldi nóta: ${list.size}")
+                    Text("Samtals: ${String.format("%.2f", total)} kr | VSK: ${String.format("%.2f", totalVat)} kr")
+                }
+                Divider()
+            }
+        }
     }
 }
 
 @Composable
 fun CameraPreview(onPhotoCaptured: (String) -> Unit) {
     val context = LocalContext.current
-    val lifecycleOwner = rememberUpdatedState(LocalContext.current as androidx.lifecycle.LifecycleOwner)
+    val lifecycleOwner = LocalLifecycleOwner.current
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
 
     AndroidView(factory = { ctx ->
         val frameLayout = FrameLayout(ctx)
+        val previewView = PreviewView(ctx).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+        }
+        frameLayout.addView(previewView)
         val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
         cameraProviderFuture.addListener({
             val cameraProvider = cameraProviderFuture.get()
             val preview = androidx.camera.core.Preview.Builder().build().also {
-                it.setSurfaceProvider(null)
+                it.setSurfaceProvider(previewView.surfaceProvider)
             }
             imageCapture = ImageCapture.Builder().build()
-            val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+            var cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
             try {
                 cameraProvider.unbindAll()
                 cameraProvider.bindToLifecycle(
-                    lifecycleOwner.value,
+                    lifecycleOwner,
                     cameraSelector,
                     preview,
                     imageCapture
                 )
             } catch (exc: Exception) {
-                Log.e("CameraPreview", "Camera binding failed", exc)
+                Log.w("CameraPreview", "Back camera binding failed, trying front", exc)
+                try {
+                    cameraProvider.unbindAll()
+                    cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
+                    cameraProvider.bindToLifecycle(
+                        lifecycleOwner,
+                        cameraSelector,
+                        preview,
+                        imageCapture
+                    )
+                } catch (exc2: Exception) {
+                    Log.e("CameraPreview", "Front camera binding also failed", exc2)
+                }
             }
         }, ContextCompat.getMainExecutor(ctx))
         frameLayout
@@ -163,5 +401,4 @@ fun CameraPreview(onPhotoCaptured: (String) -> Unit) {
     }, modifier = Modifier.padding(top = 16.dp)) {
         Text("Taka mynd af nótu")
     }
-}
 }

@@ -1,40 +1,26 @@
 package com.example.notescanner
 
-import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import java.io.File
-import java.io.FileOutputStream
+import java.io.FileWriter
 
 object ExcelUtil {
-    fun writeToExcel(invoiceInfo: Map<String, String>, excelFile: File) {
-        val workbook = XSSFWorkbook()
-        val sheet = workbook.createSheet("Reikningar")
-        val row = sheet.createRow(0)
-        var col = 0
-        invoiceInfo.forEach { (key, value) ->
-            row.createCell(col++).setCellValue("$key: $value")
+    fun ensureHeader(excelFile: File) {
+        if (!excelFile.exists()) {
+            excelFile.parentFile?.mkdirs()
+            FileWriter(excelFile, true).use { w ->
+                w.write("Skrá, Dagsetning, Mánuður, Fyrirtæki, Upphæð, VSK\n")
+            }
         }
-        FileOutputStream(excelFile).use { out ->
-            workbook.write(out)
-        }
-        workbook.close()
     }
 
     fun appendToExcel(rowData: List<String>, excelFile: File) {
-        val workbook = if (excelFile.exists()) {
-            FileInputStream(excelFile).use { fis ->
-                XSSFWorkbook(fis)
+        try {
+            ensureHeader(excelFile)
+            FileWriter(excelFile, true).use { w ->
+                w.write(rowData.joinToString(",") + "\n")
             }
-        } else {
-            XSSFWorkbook()
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
-        val sheet = workbook.getSheet("Reikningar") ?: workbook.createSheet("Reikningar")
-        val row = sheet.createRow(sheet.lastRowNum + 1)
-        rowData.forEachIndexed { idx, value ->
-            row.createCell(idx).setCellValue(value)
-        }
-        FileOutputStream(excelFile).use { out ->
-            workbook.write(out)
-        }
-        workbook.close()
     }
 }

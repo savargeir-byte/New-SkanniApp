@@ -1,3 +1,14 @@
 {
-    "java.configuration.updateBuildConfiguration": "interactive"
+    "java.configuration.updateBuildConfiguration": "automatic",
+    // Enable VS Code terminal shell integration
+    "terminal.integrated.shellIntegration.enabled": true,
+    // Ensure PowerShell is the default integrated terminal
+    "terminal.integrated.defaultProfile.windows": "PowerShell",
+    // Minimal shell args for PowerShell (avoid breaking profiles)
+    "terminal.integrated.profiles.windows": {
+        "PowerShell": {
+            "source": "PowerShell",
+            "icon": "terminal-powershell"
+        }
+    }
 }
