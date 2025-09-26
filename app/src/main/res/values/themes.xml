@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.Appið" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- Use a framework Material theme; Compose handles Material3 in code -->
+    <style name="Theme.Appid" parent="@android:style/Theme.Material.Light.NoActionBar" />
 
-    <style name="Theme.MyApplication" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.MyApplication" parent="@android:style/Theme.Material.Light.NoActionBar" />
 </resources>

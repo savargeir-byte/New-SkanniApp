@@ -55,7 +55,7 @@ jobs:
 
       - name: Build release APK (signed)
         if: env.SIGNING_READY == 'true'
-        run: ./gradlew :app:assembleRelease --stacktrace
+        run: ./gradlew :app:assembleRelease --stacktrace --info
 
       - name: Upload artifact (release APK)
         if: env.SIGNING_READY == 'true'
@@ -63,6 +63,22 @@ jobs:
         with:
           name: app-release-apk
           path: app/build/outputs/apk/release/app-release.apk
+
+      # Fallback path: if signing secrets are missing, still produce a usable debug APK
+      - name: Make Gradle executable (fallback)
+        if: env.SIGNING_READY != 'true'
+        run: chmod +x gradlew
+
+      - name: Build debug APK (fallback when not signed)
+        if: env.SIGNING_READY != 'true'
+        run: ./gradlew :app:assembleDebug --stacktrace --info
+
+      - name: Upload artifact (debug APK fallback)
+        if: env.SIGNING_READY != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
 
       - name: Create GitHub Release (on tag)
         if: env.SIGNING_READY == 'true' && startsWith(github.ref, 'refs/tags/')

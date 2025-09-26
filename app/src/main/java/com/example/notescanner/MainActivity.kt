@@ -3,6 +3,10 @@ package com.example.notescanner
 import android.os.Bundle
 import android.Manifest
 import android.content.pm.PackageManager
+import android.app.Activity
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
@@ -18,6 +22,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
@@ -29,6 +36,7 @@ import androidx.camera.core.ImageCaptureException
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.core.app.ActivityCompat
 import androidx.lifecycle.LifecycleOwner
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.camera.view.PreviewView
@@ -54,8 +62,29 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         cameraExecutor = Executors.newSingleThreadExecutor()
-        setContent {
-            NoteScannerApp()
+        try {
+            setContent {
+                // Wrap in Material3 theme to ensure required CompositionLocals exist on all devices
+                MaterialTheme(colorScheme = lightColorScheme()) {
+                    Surface(modifier = Modifier.fillMaxSize()) {
+                        NoteScannerApp()
+                    }
+                }
+            }
+        } catch (t: Throwable) {
+            // If something fails very early on certain devices, show the error instead of instant crash
+            android.util.Log.e("MainActivity", "Startup crash", t)
+            setContent {
+                MaterialTheme(colorScheme = lightColorScheme()) {
+                    Surface(modifier = Modifier.fillMaxSize()) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("Villa við ræsingu forrits:")
+                            Spacer(modifier = Modifier.size(8.dp))
+                            Text(t.message ?: t.toString())
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -68,12 +97,15 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun NoteScannerApp() {
     val context = LocalContext.current
+    val activity = context as? Activity
     val store = remember { InvoiceStore(context) }
     var ocrResult by remember { mutableStateOf("") }
     var isCameraStarted by rememberSaveable { mutableStateOf(false) }
     var lastPhotoPath by rememberSaveable { mutableStateOf("") }
     var lastExcelPath by rememberSaveable { mutableStateOf("") }
     var cameraPermissionDenied by rememberSaveable { mutableStateOf(false) }
+    var askedPermissionOnce by rememberSaveable { mutableStateOf(false) }
+    var showSettingsPrompt by rememberSaveable { mutableStateOf(false) }
     var showList by rememberSaveable { mutableStateOf(false) }
     var showOverview by rememberSaveable { mutableStateOf(false) }
     var records by remember { mutableStateOf(store.loadAll()) }
@@ -85,8 +117,30 @@ fun NoteScannerApp() {
         if (granted) {
             cameraPermissionDenied = false
             isCameraStarted = true
+            showSettingsPrompt = false
         } else {
             cameraPermissionDenied = true
+            // If the system won't show rationale anymore, it's likely permanently denied
+            val shouldShow = activity?.let { ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.CAMERA) } ?: false
+            showSettingsPrompt = !shouldShow
+        }
+        askedPermissionOnce = true
+    }
+
+    val hasCameraPermission = ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.CAMERA
+    ) == PackageManager.PERMISSION_GRANTED
+    val shouldShowRationale = activity?.let {
+        ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.CAMERA)
+    } == true
+    val permanentlyDenied = !hasCameraPermission && !shouldShowRationale && askedPermissionOnce
+
+    // Auto-request CAMERA on first open
+    LaunchedEffect(hasCameraPermission) {
+        if (!hasCameraPermission && !askedPermissionOnce) {
+            askedPermissionOnce = true
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
 
@@ -166,13 +220,46 @@ fun NoteScannerApp() {
             }
 
             if (!isCameraStarted) {
-                // Extra prompt if permission denied earlier
-            if (cameraPermissionDenied) {
-                Text(
-                    "Vantar leyfi fyrir myndavél. Leyfðu í stillingum og prófaðu aftur.",
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
+                // Permission guidance and actions before starting camera
+                if (!hasCameraPermission) {
+                    when {
+                        permanentlyDenied || showSettingsPrompt -> {
+                            Text(
+                                "Forritið þarf aðgang að myndavél til að skanna nótur.",
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
+                            Row(modifier = Modifier.padding(top = 8.dp)) {
+                                OutlinedButton(onClick = {
+                                    // Open app settings
+                                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                        data = Uri.fromParts("package", context.packageName, null)
+                                    }
+                                    context.startActivity(intent)
+                                }) { Text("Opna stillingar") }
+                                Spacer(modifier = Modifier.size(8.dp))
+                                Button(onClick = { cameraPermissionLauncher.launch(Manifest.permission.CAMERA) }) { Text("Reyna aftur") }
+                            }
+                        }
+                        shouldShowRationale -> {
+                            Text(
+                                "Við notum myndavélina til að taka mynd af nótu og vinna úr henni.",
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
+                            Button(onClick = { cameraPermissionLauncher.launch(Manifest.permission.CAMERA) }, modifier = Modifier.padding(top = 8.dp)) {
+                                Text("Veita leyfi fyrir myndavél")
+                            }
+                        }
+                        cameraPermissionDenied -> {
+                            Text(
+                                "Vantar leyfi fyrir myndavél. Leyfðu og prófaðu aftur.",
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
+                            Button(onClick = { cameraPermissionLauncher.launch(Manifest.permission.CAMERA) }, modifier = Modifier.padding(top = 8.dp)) {
+                                Text("Biðja um leyfi")
+                            }
+                        }
+                    }
+                }
             } else {
             CameraPreview(
                 onPhotoCaptured = { photoPath ->
