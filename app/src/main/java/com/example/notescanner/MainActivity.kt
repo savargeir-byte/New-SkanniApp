@@ -53,6 +53,9 @@ import com.example.notescanner.data.InvoiceStore
 import com.example.notescanner.model.InvoiceRecord
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.io.File
 
 class MainActivity : ComponentActivity() {
@@ -267,8 +270,8 @@ fun NoteScannerApp() {
                     isCameraStarted = false
 
                     // Vista mynd í möppu eftir mánuði
-                    val now = java.time.LocalDate.now()
-                    val monthKey = now.toString().substring(0,7)
+                    val today = getTodayIso()
+                    val monthKey = getCurrentMonthKey()
                     val monthFolder = File(context.filesDir, monthKey)
                     if (!monthFolder.exists()) monthFolder.mkdirs()
                     val destFile = File(monthFolder, File(photoPath).name)
@@ -282,7 +285,7 @@ fun NoteScannerApp() {
                         val vendor = parsed.vendor ?: text.lines().firstOrNull()?.take(64) ?: "Óþekkt"
                         val amount = parsed.amount ?: 0.0
                         val vat = parsed.vat ?: 0.0
-                        val dagsetning = now.toString()
+                        val dagsetning = today
 
                         // Skrá í Excel (bæta við nýja línu)
                         val excelFile = File(context.filesDir, "reikningar.xlsx")
@@ -345,6 +348,16 @@ fun NoteScannerApp() {
             style = MaterialTheme.typography.bodySmall
         )
     }
+}
+
+private fun getTodayIso(): String {
+    val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+    return sdf.format(Date())
+}
+
+private fun getCurrentMonthKey(): String {
+    val sdf = SimpleDateFormat("yyyy-MM", Locale.US)
+    return sdf.format(Date())
 }
 
 @Composable
