@@ -1,6 +1,6 @@
 <#
-  Build SkanniApp debug APK with JDK 17 on Windows
-  - Detect a local JDK 17 (Temurin/Microsoft/Oracle) or install Temurin 17 via winget
+  Build SkanniApp debug APK with JDK 21 on Windows
+  - Detect a local JDK 21 (Temurin/Microsoft/Oracle) or install Temurin 21 via winget
   - Set JAVA_HOME for this session
   - Bootstrap Android SDK cmdline-tools if missing
   - Accept licenses and install platform-tools, platforms;android-34, build-tools;34.0.0
@@ -145,13 +145,13 @@ function Ensure-AndroidSdk($repoRoot) {
   return $sdk
 }
 
-function Find-Jdk17 {
+function Find-Jdk21 {
   $candidates = @(
-    'C:\\Program Files\\Eclipse Adoptium\\jdk-17*',
-    'C:\\Program Files\\Microsoft\\jdk-17*',
-    'C:\\Program Files\\Java\\jdk-17*',
-    "$env:USERPROFILE\\AppData\\Local\\Programs\\Eclipse Adoptium\\jdk-17*",
-    "$env:LOCALAPPDATA\\Programs\\Microsoft\\jdk-17*"
+    'C:\\Program Files\\Eclipse Adoptium\\jdk-21*',
+    'C:\\Program Files\\Microsoft\\jdk-21*',
+    'C:\\Program Files\\Java\\jdk-21*',
+    "$env:USERPROFILE\\AppData\\Local\\Programs\\Eclipse Adoptium\\jdk-21*",
+    "$env:LOCALAPPDATA\\Programs\\Microsoft\\jdk-21*"
   )
   foreach ($p in $candidates) {
     $dirs = Get-ChildItem -Path $p -Directory -ErrorAction SilentlyContinue | Sort-Object Name -Descending
@@ -171,15 +171,15 @@ $jbr = 'C:\\Program Files\\Android\\Android Studio\\jbr\\bin\\java.exe'
 if (Test-Path $jbr) { try { & $jbr -version 2>&1 | Write-Host } catch { Write-Host '(Unable to run JBR java -version)' } }
 else { Write-Host "Android Studio JBR not found (that's fine)." }
 
-Write-Header 'Find JDK 17'
-$jdk = Find-Jdk17
+Write-Header 'Find JDK 21'
+$jdk = Find-Jdk21
 if (-not $jdk) {
-  if ($NoInstall) { throw 'JDK 17 not found and --NoInstall specified. Install JDK 17 and re-run.' }
-  Write-Host 'No local JDK 17 found. Installing Temurin 17 via winget...' -ForegroundColor Yellow
-  try { winget install --id EclipseAdoptium.Temurin.17.JDK --silent --accept-source-agreements --accept-package-agreements | Out-Null } catch { Write-Warning 'winget install failed. Install JDK 17 manually and re-run.' }
-  $jdk = Find-Jdk17
+  if ($NoInstall) { throw 'JDK 21 not found and --NoInstall specified. Install JDK 21 and re-run.' }
+  Write-Host 'No local JDK 21 found. Installing Temurin 21 via winget...' -ForegroundColor Yellow
+  try { winget install --id EclipseAdoptium.Temurin.21.JDK --silent --accept-source-agreements --accept-package-agreements | Out-Null } catch { Write-Warning 'winget install failed. Install JDK 21 manually and re-run.' }
+  $jdk = Find-Jdk21
 }
-if (-not $jdk) { throw 'JDK 17 not found. Please install JDK 17 and re-run.' }
+if (-not $jdk) { throw 'JDK 21 not found. Please install JDK 21 and re-run.' }
 
 $env:JAVA_HOME = $jdk
 Write-Host "Using JAVA_HOME = $env:JAVA_HOME" -ForegroundColor Green

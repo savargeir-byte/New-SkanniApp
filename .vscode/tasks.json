@@ -34,7 +34,7 @@
 			"group": "build"
 		},
 		{
-			"label": "Build Debug APK (JDK17)",
+			"label": "Build Debug APK (JDK21)",
 			"type": "shell",
 			"command": "powershell",
 			"args": [
@@ -48,7 +48,7 @@
 			"group": "build"
 		},
 		{
-			"label": "Build Debug APK (JDK17)",
+			"label": "Run on Android Emulator",
 			"type": "shell",
 			"command": "powershell",
 			"args": [
@@ -56,10 +56,10 @@
 				"-ExecutionPolicy",
 				"Bypass",
 				"-File",
-				"scripts/build-debug.ps1"
+				"scripts/run-emulator.ps1",
+				"-Rebuild"
 			],
-			"isBackground": false,
-			"group": "build"
+			"problemMatcher": []
 		}
 	]
 }

@@ -60,11 +60,12 @@ android {
 	}
 
 	compileOptions {
-		sourceCompatibility = JavaVersion.VERSION_17
-		targetCompatibility = JavaVersion.VERSION_17
+		sourceCompatibility = JavaVersion.VERSION_21
+		targetCompatibility = JavaVersion.VERSION_21
+		isCoreLibraryDesugaringEnabled = true
 	}
 	kotlinOptions {
-		jvmTarget = "17"
+		jvmTarget = "21"
 	}
 	buildFeatures {
 		compose = true
@@ -72,6 +73,9 @@ android {
 	composeOptions {
 		kotlinCompilerExtensionVersion = "1.5.14"
 	}
+
+	// Workaround Windows file-lock issues by using a fresh build dir
+	setBuildDir("build_android")
 }
 
 dependencies {
@@ -91,6 +95,8 @@ dependencies {
 
 	// ML Kit OCR (on-device)
 	implementation("com.google.mlkit:text-recognition:16.0.0")
+
+	coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.3")
 
 	testImplementation("junit:junit:4.13.2")
 	androidTestImplementation("androidx.test.ext:junit:1.1.5")

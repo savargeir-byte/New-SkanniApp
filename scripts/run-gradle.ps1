@@ -11,7 +11,7 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
 
-# Prefer installed JDK 17 used by our build script, fall back to common path
+# Prefer installed JDK 21 for builds
 function Get-JavaVersion($javaExe) {
   try {
     $out = & $javaExe -version 2>&1 | Out-String
@@ -20,37 +20,37 @@ function Get-JavaVersion($javaExe) {
   } catch { return $null }
 }
 
-function Find-Jdk17 {
+function Find-Jdk21 {
   $candidates = @(
-    # Android Studio bundled JBR (Electric Eel+ typical path)
+    # Android Studio bundled JBR (if 21+)
     'C:\\Program Files\\Android\\Android Studio\\jbr',
     'C:\\Program Files\\Android\\Android Studio\\jre',
-    'C:\\Users\\Computer\\AppData\\Local\\Programs\\Android Studio\\jbr',
+    "$env:USERPROFILE\\AppData\\Local\\Programs\\Android Studio\\jbr",
     # Common vendor installs
-    'C:\\Program Files\\Eclipse Adoptium\\jdk-17*',
-    'C:\\Program Files\\Microsoft\\jdk-17*',
-    'C:\\Program Files\\Java\\jdk-17*'
+    'C:\\Program Files\\Eclipse Adoptium\\jdk-21*',
+    'C:\\Program Files\\Microsoft\\jdk-21*',
+    'C:\\Program Files\\Java\\jdk-21*'
   )
   foreach ($p in $candidates) {
     Get-ChildItem -Path $p -Directory -ErrorAction SilentlyContinue | Sort-Object Name -Descending | ForEach-Object {
-      $javaExe = Join-Path $_.FullName 'bin\\java.exe'
+      $javaExe = Join-Path $_.FullName 'bin\java.exe'
       if (Test-Path $javaExe) {
         $ver = Get-JavaVersion $javaExe
-        if ($ver -eq 17) { return $_.FullName }
+        if ($ver -eq 21) { return $_.FullName }
       }
     }
     # Direct path (if exact folder, not wildcard)
-    if ((Test-Path $p) -and (Test-Path (Join-Path $p 'bin\\java.exe'))) {
-      $ver = Get-JavaVersion (Join-Path $p 'bin\\java.exe')
-      if ($ver -eq 17) { return $p }
+    if ((Test-Path $p) -and (Test-Path (Join-Path $p 'bin\java.exe'))) {
+      $ver = Get-JavaVersion (Join-Path $p 'bin\java.exe')
+      if ($ver -eq 21) { return $p }
     }
   }
   # Try JAVA_HOME if set
   if ($env:JAVA_HOME) {
-    $javaExe = Join-Path $env:JAVA_HOME 'bin\\java.exe'
+    $javaExe = Join-Path $env:JAVA_HOME 'bin\java.exe'
     if (Test-Path $javaExe) {
       $ver = Get-JavaVersion $javaExe
-      if ($ver -eq 17) { return $env:JAVA_HOME }
+      if ($ver -eq 21) { return $env:JAVA_HOME }
     }
   }
   # Try PATH java
@@ -59,25 +59,21 @@ function Find-Jdk17 {
     $javaPath = $javaCmdObj.Path
     if (-not $javaPath) { $javaPath = $javaCmdObj.Source }
     if (-not $javaPath) { $javaPath = $javaCmdObj.Definition }
-    # If it's a shim or symlink, still attempt version detection
     $ver = Get-JavaVersion $javaPath
-    if ($ver -eq 17) {
-      # If it's under \bin, strip to JAVA_HOME; otherwise fallback to env var
+    if ($ver -eq 21) {
       $binDir = Split-Path $javaPath -Parent
       $maybeHome = Split-Path $binDir -Parent
       if (Test-Path (Join-Path $maybeHome 'bin')) { return $maybeHome }
-      # As a last resort, return the bin parent if it looks like a JDK
       return $maybeHome
     }
   }
-  # Fallback to where.exe (in case Get-Command doesn't resolve applications)
   try {
     $whereOut = & where.exe java 2>$null
     if ($whereOut) {
       $first = ($whereOut | Select-Object -First 1).Trim()
       if ($first) {
         $ver = Get-JavaVersion $first
-        if ($ver -eq 17) {
+        if ($ver -eq 21) {
           $binDir = Split-Path $first -Parent
           $maybeHome = Split-Path $binDir -Parent
           if (Test-Path (Join-Path $maybeHome 'bin')) { return $maybeHome }
@@ -91,13 +87,13 @@ function Find-Jdk17 {
 
 $jdk = $null
 if ($JavaHome) {
-  $javaExe = Join-Path $JavaHome 'bin\\java.exe'
+  $javaExe = Join-Path $JavaHome 'bin\java.exe'
   if (Test-Path $javaExe) {
     $ver = Get-JavaVersion $javaExe
-    if ($ver -eq 17) {
+    if ($ver -eq 21) {
       $jdk = $JavaHome
     } else {
-      Write-Host "Provided -JavaHome java -version did not report 17 (continuing anyway): $JavaHome" -ForegroundColor Yellow
+      Write-Host "Provided -JavaHome java -version did not report 21 (continuing anyway): $JavaHome" -ForegroundColor Yellow
       $jdk = $JavaHome
     }
   } else {
@@ -113,7 +109,7 @@ if ($jdk) {
     Write-Host "Warning: JAVA_HOME/bin not found. Build may still work if Gradle locates Java via PATH." -ForegroundColor Yellow
   }
 } else {
-  $jdk = Find-Jdk17
+  $jdk = Find-Jdk21
   if ($jdk) {
     $env:JAVA_HOME = $jdk
     Write-Host "Using JAVA_HOME = $env:JAVA_HOME" -ForegroundColor Cyan
@@ -121,37 +117,37 @@ if ($jdk) {
       Write-Host "Warning: JAVA_HOME/bin not found. Build may still work if Gradle locates Java via PATH." -ForegroundColor Yellow
     }
   } else {
-  # Try PATH Java directly
-  Write-Host "PATH = $env:PATH" -ForegroundColor DarkGray
-  try {
-    $pv = & java -version 2>&1 | Out-String
-  } catch { $pv = '' }
-  if ($pv -match 'version \"(17)') {
-    Write-Host "Using PATH Java 17 (java -version detected)" -ForegroundColor Cyan
-  } else {
-    # As a secondary attempt, resolve the java path with Get-Command/where and check again
-    $javaCmdObj = Get-Command java -ErrorAction SilentlyContinue
-    $javaPath = $null
-    if ($javaCmdObj) { $javaPath = $javaCmdObj.Path; if (-not $javaPath) { $javaPath = $javaCmdObj.Source }; if (-not $javaPath) { $javaPath = $javaCmdObj.Definition } }
-    if (-not $javaPath) {
-      try { $javaPath = (& where.exe java 2>$null | Select-Object -First 1).Trim() } catch { $javaPath = $null }
-    }
-    if ($javaPath) {
-      $ver = Get-JavaVersion $javaPath
-      if ($ver -eq 17) {
-        Write-Host "Using PATH Java 17 at $javaPath" -ForegroundColor Cyan
+    # Try PATH Java directly
+    Write-Host "PATH = $env:PATH" -ForegroundColor DarkGray
+    try {
+      $pv = & java -version 2>&1 | Out-String
+    } catch { $pv = '' }
+    if ($pv -match 'version \"(21)') {
+      Write-Host "Using PATH Java 21 (java -version detected)" -ForegroundColor Cyan
+    } else {
+      # As a secondary attempt, resolve the java path with Get-Command/where and check again
+      $javaCmdObj = Get-Command java -ErrorAction SilentlyContinue
+      $javaPath = $null
+      if ($javaCmdObj) { $javaPath = $javaCmdObj.Path; if (-not $javaPath) { $javaPath = $javaCmdObj.Source }; if (-not $javaPath) { $javaPath = $javaCmdObj.Definition } }
+      if (-not $javaPath) {
+        try { $javaPath = (& where.exe java 2>$null | Select-Object -First 1).Trim() } catch { $javaPath = $null }
+      }
+      if ($javaPath) {
+        $ver = Get-JavaVersion $javaPath
+        if ($ver -eq 21) {
+          Write-Host "Using PATH Java 21 at $javaPath" -ForegroundColor Cyan
+        } else {
+          Write-Host 'Could not find a Java 21 installation automatically.' -ForegroundColor Yellow
+          Write-Host 'Please install JDK 21 (Temurin or Microsoft) or set JAVA_HOME to a valid JDK 21 and re-run.' -ForegroundColor Yellow
+          exit 1
+        }
       } else {
-        Write-Host 'Could not find a Java 17 installation automatically.' -ForegroundColor Yellow
-        Write-Host 'Please install JDK 17 (Temurin or Microsoft) or set JAVA_HOME to a valid JDK 17 and re-run.' -ForegroundColor Yellow
+        Write-Host 'Could not find a Java installation on PATH.' -ForegroundColor Yellow
+        Write-Host 'Please install JDK 21 (Temurin or Microsoft) or set JAVA_HOME to a valid JDK 21 and re-run.' -ForegroundColor Yellow
         exit 1
       }
-    } else {
-      Write-Host 'Could not find a Java installation on PATH.' -ForegroundColor Yellow
-      Write-Host 'Please install JDK 17 (Temurin or Microsoft) or set JAVA_HOME to a valid JDK 17 and re-run.' -ForegroundColor Yellow
-      exit 1
     }
   }
-}
 }
 
 $gradle = Join-Path $repoRoot 'gradlew.bat'
