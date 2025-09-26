@@ -96,18 +96,31 @@ object OcrUtil {
     }
 
     private fun normalizeDate(raw: String): String {
-        // Output format yyyy-MM-dd
-        val javaTime = java.time.format.DateTimeFormatter
-        val targets = javaTime.ofPattern("yyyy-MM-dd")
-        val parsers = listOf(
-            javaTime.ISO_LOCAL_DATE,
-            javaTime.ofPattern("dd.MM.yyyy"),
-            javaTime.ofPattern("dd/MM/yyyy"),
-            javaTime.ofPattern("dd-MM-yyyy")
-        )
-        val date = parsers.firstNotNullOf { fmt ->
-            try { java.time.LocalDate.parse(raw, fmt) } catch (_: Throwable) { null }
+        // Normalize common formats to yyyy-MM-dd without relying on java.time
+        // 1) Already ISO: yyyy-MM-dd
+        if (Regex("""^\n?\d{4}-\d{2}-\d{2}$""").matches(raw.trim())) {
+            return raw.trim()
         }
-        return date.format(targets)
+
+        // 2) dd.MM.yyyy -> yyyy-MM-dd
+        Regex("""^(\n?)(\d{2})\.(\d{2})\.(\d{4})$""").matchEntire(raw.trim())?.let {
+            val (_, dd, MM, yyyy) = it.groupValues
+            return "$yyyy-$MM-$dd"
+        }
+
+        // 3) dd/MM/yyyy -> yyyy-MM-dd
+        Regex("""^(\n?)(\d{2})/(\d{2})/(\d{4})$""").matchEntire(raw.trim())?.let {
+            val (_, dd, MM, yyyy) = it.groupValues
+            return "$yyyy-$MM-$dd"
+        }
+
+        // 4) dd-MM-yyyy -> yyyy-MM-dd
+        Regex("""^(\n?)(\d{2})-(\d{2})-(\d{4})$""").matchEntire(raw.trim())?.let {
+            val (_, dd, MM, yyyy) = it.groupValues
+            return "$yyyy-$MM-$dd"
+        }
+
+        // Fallback: return as-is
+        return raw.trim()
     }
 }

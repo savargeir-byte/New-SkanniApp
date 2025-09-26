@@ -32,6 +32,34 @@
 				"$gradle"
 			],
 			"group": "build"
+		},
+		{
+			"label": "Build Debug APK (JDK17)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/build-debug.ps1"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Build Debug APK (JDK17)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/build-debug.ps1"
+			],
+			"isBackground": false,
+			"group": "build"
 		}
 	]
 }
