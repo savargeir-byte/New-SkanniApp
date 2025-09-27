@@ -33,6 +33,9 @@ jobs:
       - name: Prepare Gradle
         uses: gradle/actions/setup-gradle@v3
 
+      - name: Make Gradle executable
+        run: chmod +x gradlew
+
       - name: Assemble debug APK
         run: ./gradlew --no-daemon :app:assembleDebug
 
