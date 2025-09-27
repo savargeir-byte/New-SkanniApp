@@ -24,6 +24,67 @@ object OcrUtil {
         }
     }
 
+    // Offline VSK extraction (án VSK, VSK upphæð, heild) úr OCR texta
+    data class VatExtraction(
+        val subtotal: Double?, // án VSK
+        val tax: Double?,      // VSK upphæð
+        val total: Double?,    // með VSK
+        val rates: Map<Double, Double> = emptyMap() // prósenta -> VSK upphæð
+    )
+
+    fun extractVatAmounts(ocrText: String): VatExtraction {
+        fun parseNumber(s: String): Double? {
+            val cleaned = s.lowercase()
+                .replace("kr", "")
+                .replace("\u00A0", "") // non-breaking space
+                .replace("\\s+".toRegex(), "")
+                .replace(".", "")
+                .replace(",", ".")
+            return cleaned.toDoubleOrNull()
+        }
+
+        val lines = ocrText.lines().map { it.trim() }.filter { it.isNotEmpty() }
+        val numPattern = "([0-9]{1,3}(?:[. ][0-9]{3})*(?:,[0-9]{1,2})?|[0-9]+(?:,[0-9]{1,2})?)"
+        val pctPattern = "([0-9]{1,2}(?:,[0-9]{1,2})?)\\s*%"
+
+        var subtotal: Double? = null
+        var tax: Double? = null
+        var total: Double? = null
+        val rateMap = mutableMapOf<Double, Double>()
+
+        lines.forEach { line ->
+            val l = line.lowercase()
+
+            if (total == null && l.contains(Regex("\\b(heild|alls|samtals|með\\s*vsk|m/\\s*vsk|total|amount)\\b"))) {
+                Regex(numPattern).find(line)?.let { total = parseNumber(it.value) }
+            }
+            if (subtotal == null && l.contains(Regex("\\b(án\\s*vsk|verð\\s*án\\s*vsk|subtotal|nettó|netto)\\b"))) {
+                Regex(numPattern).find(line)?.let { subtotal = parseNumber(it.value) }
+            }
+
+            if (l.contains("vsk") || l.contains("virðisauk")) {
+                Regex(pctPattern).findAll(line).forEach { m ->
+                    val rate = parseNumber(m.groupValues[1]) ?: return@forEach
+                    val nums = Regex(numPattern).findAll(line).map { it.value }.toList()
+                    nums.lastOrNull()?.let { amtStr ->
+                        parseNumber(amtStr)?.let { amt -> rateMap[rate] = (rateMap[rate] ?: 0.0) + amt }
+                    }
+                }
+                if (!Regex(pctPattern).containsMatchIn(line) && tax == null) {
+                    Regex(numPattern).findAll(line).map { it.value }.lastOrNull()?.let { tax = parseNumber(it) }
+                }
+            }
+        }
+
+        when {
+            subtotal != null && total != null && tax == null -> tax = (total!! - subtotal!!).let { if (it >= -0.01) it else null }
+            subtotal == null && total != null && tax != null -> subtotal = total!! - tax!!
+            subtotal != null && tax != null && total == null -> total = subtotal!! + tax!!
+        }
+
+        return VatExtraction(subtotal, tax, total, rateMap)
+    }
+
     data class ParsedInvoice(
         val vendor: String?,
         val amount: Double?,

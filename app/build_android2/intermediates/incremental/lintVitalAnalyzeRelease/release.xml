@@ -1,0 +1,32 @@
+<variant
+    name="release"
+    package="com.example.notescanner"
+    minSdkVersion="24"
+    targetSdkVersion="34"
+    mergedManifest="build_android2\intermediates\merged_manifest\release\processReleaseMainManifest\AndroidManifest.xml"
+    proguardFiles="build\intermediates\default_proguard_files\global\proguard-android-optimize.txt-8.5.2;proguard-rules.pro"
+    partialResultsDir="build_android2\intermediates\lint_vital_partial_results\release\lintVitalAnalyzeRelease\out"
+    desugaredMethodsFiles="C:\Users\Computer\.gradle\caches\8.13\transforms\5eff93c0f3ad172b1dcab0f210099f1b\transformed\desugar_jdk_libs_configuration-2.1.3-desugar-lint.txt;C:\Users\Computer\.gradle\caches\8.13\transforms\b7b063f4e7820ab8d9c70777a2ad48c9\transformed\D8BackportedDesugaredMethods.txt">
+  <buildFeatures
+      coreLibraryDesugaring="true"
+      namespacing="REQUIRED"/>
+  <sourceProviders>
+    <sourceProvider
+        manifests="src\main\AndroidManifest.xml"
+        javaDirectories="src\main\java;src\release\java;src\main\kotlin;src\release\kotlin"
+        resDirectories="src\main\res;src\release\res"
+        assetsDirectories="src\main\assets;src\release\assets"/>
+  </sourceProviders>
+  <testSourceProviders>
+  </testSourceProviders>
+  <testFixturesSourceProviders>
+  </testFixturesSourceProviders>
+  <artifact
+      classOutputs="build_android2\intermediates\javac\release\compileReleaseJavaWithJavac\classes;build_android2\tmp\kotlin-classes\release;build_android2\kotlinToolingMetadata;build_android2\intermediates\compile_and_runtime_not_namespaced_r_class_jar\release\processReleaseResources\R.jar"
+      type="MAIN"
+      applicationId="com.example.notescanner"
+      generatedSourceFolders="build_android2\generated\ap_generated_sources\release\out"
+      generatedResourceFolders="build_android2\generated\res\resValues\release"
+      desugaredMethodsFiles="C:\Users\Computer\.gradle\caches\8.13\transforms\5eff93c0f3ad172b1dcab0f210099f1b\transformed\desugar_jdk_libs_configuration-2.1.3-desugar-lint.txt;C:\Users\Computer\.gradle\caches\8.13\transforms\b7b063f4e7820ab8d9c70777a2ad48c9\transformed\D8BackportedDesugaredMethods.txt">
+  </artifact>
+</variant>

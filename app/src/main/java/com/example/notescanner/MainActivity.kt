@@ -316,8 +316,10 @@ fun NoteScannerApp() {
                                             ocrResult = text
                                             val parsed = OcrUtil.parse(text)
                                             val vendor = parsed.vendor ?: text.lines().firstOrNull()?.take(64) ?: "Óþekkt"
-                                            val amount = parsed.amount ?: 0.0
-                                            val vat = parsed.vat ?: 0.0
+                                            // Try offline VSK extraction for amounts
+                                            val vatExtract = OcrUtil.extractVatAmounts(text)
+                                            val amount = vatExtract.total ?: parsed.amount ?: 0.0
+                                            val vat = vatExtract.tax ?: parsed.vat ?: 0.0
                                             val dagsetning = today
 
                                             val excelFile = File(context.filesDir, "reikningar.xlsx")
