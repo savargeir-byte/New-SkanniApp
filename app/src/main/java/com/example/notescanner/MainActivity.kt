@@ -48,6 +48,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import android.graphics.BitmapFactory
 import com.example.notescanner.data.InvoiceStore
 import com.example.notescanner.model.InvoiceRecord
@@ -166,6 +167,15 @@ fun NoteScannerApp() {
                         )
                     )
                 )
+        )
+        // Faint watermark image (user-provided) over the gradient but behind content
+        Image(
+            painter = painterResource(id = R.drawable.bg_watermark),
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = 0.08f }, // very faint
+            contentScale = ContentScale.Crop
         )
         // Optional: Add a watermark later using a Compose Canvas. Avoid painterResource here to prevent
         // crashes when a non-vector XML drawable is accidentally resolved on some devices.
