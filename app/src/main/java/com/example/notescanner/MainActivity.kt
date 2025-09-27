@@ -46,6 +46,10 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import android.graphics.BitmapFactory
@@ -148,32 +152,23 @@ fun NoteScannerApp() {
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Background image if present: place a drawable named bg_invoice in res/drawable
-        val bgResId = remember {
-            context.resources.getIdentifier("bg_invoice", "drawable", context.packageName)
-        }
-        if (bgResId != 0) {
-            Image(
-                painter = painterResource(id = bgResId),
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-                alpha = 0.15f
-            )
-        }
-        // Centered receipt watermark
-        val receiptId = remember { context.resources.getIdentifier("ic_receipt_bg", "drawable", context.packageName) }
-        if (receiptId != 0) {
-            Image(
-                painter = painterResource(id = receiptId),
-                contentDescription = null,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .size(200.dp),
-                contentScale = ContentScale.Fit,
-                alpha = 0.10f
-            )
-        }
+        // Background gradient (Compose) to avoid XML Shape not supported by painterResource
+        // Equivalent to drawable/bg_invoice.xml with subtle transparency
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0x26FFFFFF), // ~15% alpha white
+                            Color(0x26F5F5F5),
+                            Color(0x26EFEFEF)
+                        )
+                    )
+                )
+        )
+        // Optional: Add a watermark later using a Compose Canvas. Avoid painterResource here to prevent
+        // crashes when a non-vector XML drawable is accidentally resolved on some devices.
 
         Column(modifier = Modifier.padding(16.dp)) {
         Text("Velkomin í nótuskanna!", modifier = Modifier.padding(bottom = 16.dp))

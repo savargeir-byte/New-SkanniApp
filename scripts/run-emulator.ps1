@@ -82,11 +82,24 @@ if ($Rebuild) {
   }
 }
 
-# Install APK
-$apkDir = Join-Path $repoRoot 'app\build\outputs\apk\debug'
-$apk = Get-ChildItem -Path $apkDir -Filter *.apk -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-if (-not $apk) { throw "No debug APK found. Run a build first or pass -Rebuild." }
-Write-Header "Install APK: $($apk.Name)"
+# Install APK (use new build_android output dir)
+$apkDirCandidates = @(
+  (Join-Path $repoRoot 'app\build_android\outputs\apk\debug'),
+  (Join-Path $repoRoot 'app\build\outputs\apk\debug') # legacy fallback
+)
+$apk = $null
+foreach ($dir in $apkDirCandidates) {
+  if (Test-Path $dir) {
+    $apk = Get-ChildItem -Path $dir -Filter *.apk -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if ($apk) { break }
+  }
+}
+if (-not $apk) { throw "No debug APK found in build_android or build. Run a build first or pass -Rebuild." }
+Write-Header "Install APK: $($apk.FullName)"
+
+# Uninstall any existing install to avoid stale dex/class issues
+Write-Header 'Uninstall old package (if present)'
+& $adb uninstall 'com.example.notescanner' 2>$null | Out-Null
 # Try install with -g (grant all permissions). Fallback without if unsupported
 Write-Header 'Install APK: grant permissions (-g)'
 & $adb install -r -d -g $apk.FullName
