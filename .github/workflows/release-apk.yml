@@ -49,6 +49,9 @@ jobs:
         with:
           files: |
             app/build_android3/outputs/apk/release/app-release.apk
+            app/build_android3/outputs/apk/release/app-release-unsigned.apk
+            app/build/outputs/apk/release/app-release.apk
+            app/build/outputs/apk/release/app-release-unsigned.apk
           draft: false
           prerelease: false
         env:
