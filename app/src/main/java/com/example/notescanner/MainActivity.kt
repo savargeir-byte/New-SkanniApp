@@ -51,7 +51,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import android.graphics.BitmapFactory
 import com.example.notescanner.data.InvoiceStore
 import com.example.notescanner.model.InvoiceRecord
