@@ -10,17 +10,8 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.*
 import androidx.compose.material3.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -50,6 +41,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.ui.layout.ContentScale
 import android.graphics.BitmapFactory
 import com.example.notescanner.data.InvoiceStore
@@ -114,8 +111,12 @@ fun NoteScannerApp() {
     var showSettingsPrompt by rememberSaveable { mutableStateOf(false) }
     var showList by rememberSaveable { mutableStateOf(false) }
     var showOverview by rememberSaveable { mutableStateOf(false) }
+    var selectedRecord by remember { mutableStateOf<InvoiceRecord?>(null) }
     var records by remember { mutableStateOf(store.loadAll()) }
     fun refreshRecords() { records = store.loadAll() }
+
+    // Expose ImageCapture from CameraPreview so the main Scan button can trigger capture
+    var imageCaptureRef by remember { mutableStateOf<ImageCapture?>(null) }
 
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -172,31 +173,10 @@ fun NoteScannerApp() {
         Column(modifier = Modifier.padding(16.dp)) {
         Text("Velkomin í nótuskanna!", modifier = Modifier.padding(bottom = 16.dp))
 
-            // Big primary scan button
-            Button(
-                onClick = {
-                    showList = false
-                    showOverview = false
-                    val granted = ContextCompat.checkSelfPermission(
-                        context,
-                        Manifest.permission.CAMERA
-                    ) == PackageManager.PERMISSION_GRANTED
-                    if (granted) {
-                        isCameraStarted = true
-                    } else {
-                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-            ) {
-                Text("Skanna nótu")
-            }
-
-            Spacer(modifier = Modifier.size(12.dp))
-
             // Secondary navigation buttons
+            // (Primary scan button moved to the bottom of the screen)
+            Spacer(modifier = Modifier.size(4.dp))
+
             Row(modifier = Modifier.fillMaxWidth()) {
                 OutlinedButton(onClick = {
                     showOverview = true; showList = false; isCameraStarted = false
@@ -207,12 +187,17 @@ fun NoteScannerApp() {
                 }, modifier = Modifier.weight(1f)) { Text("Skoða nótur") }
             }
 
+            if (selectedRecord != null) {
+                NoteDetailScreen(record = selectedRecord!!, onBack = { selectedRecord = null })
+                return@Column
+            }
+
             if (showOverview) {
-                OverviewScreen(records = records)
+                OverviewScreen(records = records, onOpen = { selectedRecord = it }, onBack = { showOverview = false })
                 return@Column
             }
             if (showList) {
-                InvoiceListScreen(records = records)
+                InvoiceListScreen(records = records, onOpen = { selectedRecord = it }, onBack = { showList = false })
                 return@Column
             }
 
@@ -258,53 +243,10 @@ fun NoteScannerApp() {
                     }
                 }
             } else {
-            CameraPreview(
-                onPhotoCaptured = { photoPath ->
-                    lastPhotoPath = photoPath
-                    isCameraStarted = false
-
-                    // Vista mynd í möppu eftir mánuði
-                    val today = getTodayIso()
-                    val monthKey = getCurrentMonthKey()
-                    val monthFolder = File(context.filesDir, monthKey)
-                    if (!monthFolder.exists()) monthFolder.mkdirs()
-                    val destFile = File(monthFolder, File(photoPath).name)
-                    File(photoPath).copyTo(destFile, overwrite = true)
-
-                    // OCR á mynd
-                    OcrUtil.recognizeTextFromImage(context, destFile) { text ->
-                        ocrResult = text
-                        // Greina seljanda, upphæð og VSK
-                        val parsed = OcrUtil.parse(text)
-                        val vendor = parsed.vendor ?: text.lines().firstOrNull()?.take(64) ?: "Óþekkt"
-                        val amount = parsed.amount ?: 0.0
-                        val vat = parsed.vat ?: 0.0
-                        val dagsetning = today
-
-                        // Skrá í Excel (bæta við nýja línu)
-                        val excelFile = File(context.filesDir, "reikningar.xlsx")
-                        ExcelUtil.appendToExcel(
-                            listOf(destFile.name, dagsetning, monthKey, vendor, String.format("%.2f", amount), String.format("%.2f", vat)),
-                            excelFile
-                        )
-                        lastExcelPath = excelFile.absolutePath
-
-                        // Vista í JSON gagnagrunn
-                        val record = InvoiceRecord(
-                            id = System.currentTimeMillis(),
-                            date = dagsetning,
-                            monthKey = monthKey,
-                            vendor = vendor,
-                            amount = amount,
-                            vat = vat,
-                            imagePath = destFile.absolutePath
-                        )
-                        store.add(record)
-                        refreshRecords()
-                    }
-                }
-            )
-        }
+                CameraPreview(
+                    onImageCaptureReady = { cap -> imageCaptureRef = cap }
+                )
+            }
 
         if (ocrResult.isNotEmpty()) {
             Text("Niðurstaða OCR:", modifier = Modifier.padding(top = 16.dp))
@@ -333,6 +275,89 @@ fun NoteScannerApp() {
         }
         }
 
+        // Bottom primary scan button
+        Button(
+            onClick = {
+                showList = false
+                showOverview = false
+                val granted = ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.CAMERA
+                ) == PackageManager.PERMISSION_GRANTED
+                if (!granted) {
+                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                    return@Button
+                }
+
+                if (!isCameraStarted) {
+                    isCameraStarted = true
+                } else {
+                    val ic = imageCaptureRef
+                    if (ic != null) {
+                        try {
+                            val photoFile = File(context.filesDir, "nota.jpg")
+                            val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
+                            ic.takePicture(
+                                outputOptions,
+                                ContextCompat.getMainExecutor(context),
+                                object : ImageCapture.OnImageSavedCallback {
+                                    override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                                        lastPhotoPath = photoFile.absolutePath
+                                        isCameraStarted = false
+
+                                        val today = getTodayIso()
+                                        val monthKey = getCurrentMonthKey()
+                                        val monthFolder = File(context.filesDir, monthKey)
+                                        if (!monthFolder.exists()) monthFolder.mkdirs()
+                                        val destFile = File(monthFolder, File(photoFile.absolutePath).name)
+                                        File(photoFile.absolutePath).copyTo(destFile, overwrite = true)
+
+                                        OcrUtil.recognizeTextFromImage(context, destFile) { text ->
+                                            ocrResult = text
+                                            val parsed = OcrUtil.parse(text)
+                                            val vendor = parsed.vendor ?: text.lines().firstOrNull()?.take(64) ?: "Óþekkt"
+                                            val amount = parsed.amount ?: 0.0
+                                            val vat = parsed.vat ?: 0.0
+                                            val dagsetning = today
+
+                                            val excelFile = File(context.filesDir, "reikningar.xlsx")
+                                            ExcelUtil.appendToExcel(
+                                                listOf(destFile.name, dagsetning, monthKey, vendor, String.format("%.2f", amount), String.format("%.2f", vat)),
+                                                excelFile
+                                            )
+                                            lastExcelPath = excelFile.absolutePath
+
+                                            val record = InvoiceRecord(
+                                                id = System.currentTimeMillis(),
+                                                date = dagsetning,
+                                                monthKey = monthKey,
+                                                vendor = vendor,
+                                                amount = amount,
+                                                vat = vat,
+                                                imagePath = destFile.absolutePath
+                                            )
+                                            store.add(record)
+                                            refreshRecords()
+                                        }
+                                    }
+                                    override fun onError(exception: ImageCaptureException) {
+                                        Log.e("NoteScanner", "Photo capture failed: ${exception.message}", exception)
+                                    }
+                                }
+                            )
+                        } catch (e: Exception) {
+                            Log.e("NoteScanner", "Capture invoke failed", e)
+                        }
+                    }
+                }
+            },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 40.dp)
+                .fillMaxWidth()
+                .height(56.dp)
+        ) { Text("Skanna nótu") }
+
         // Footer branding at bottom
         Text(
             text = "IceVeflausnir",
@@ -355,17 +380,31 @@ private fun getCurrentMonthKey(): String {
 }
 
 @Composable
-fun InvoiceListScreen(records: List<InvoiceRecord>) {
+fun InvoiceListScreen(records: List<InvoiceRecord>, onOpen: (InvoiceRecord) -> Unit, onBack: () -> Unit = {}) {
     val grouped = remember(records) { records.groupBy { it.monthKey }.toSortedMap(compareByDescending { it }) }
     LazyColumn(modifier = Modifier.padding(top = 16.dp)) {
+        item(key = "back-header") {
+            Row(modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(onClick = onBack) { Text("Til baka") }
+            }
+        }
         grouped.forEach { (month, list) ->
             item(key = "header-$month") {
-                Text(text = month, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(vertical = 8.dp))
+                Surface(color = MaterialTheme.colorScheme.background) {
+                    Text(
+                        text = month,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                    )
+                }
             }
             items(list, key = { it.id }) { rec ->
                 Row(modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp)) {
+                    .padding(vertical = 8.dp)
+                    .clickable { onOpen(rec) }) {
                     val thumb = remember(rec.imagePath) { loadThumbnail(rec.imagePath, 128) }
                     if (thumb != null) {
                         Image(bitmap = thumb.asImageBitmap(), contentDescription = null, modifier = Modifier.size(64.dp))
@@ -379,7 +418,7 @@ fun InvoiceListScreen(records: List<InvoiceRecord>) {
                         Text("Upphæð: ${String.format("%.2f", rec.amount)} kr  |  VSK: ${String.format("%.2f", rec.vat)} kr")
                     }
                 }
-                Divider()
+                HorizontalDivider()
             }
         }
     }
@@ -407,28 +446,254 @@ private fun loadThumbnail(path: String, maxDim: Int): android.graphics.Bitmap? {
 }
 
 @Composable
-fun OverviewScreen(records: List<InvoiceRecord>) {
-    val grouped = remember(records) { records.groupBy { it.monthKey }.toSortedMap(compareByDescending { it }) }
-    LazyColumn(modifier = Modifier.padding(top = 16.dp)) {
-        grouped.forEach { (month, list) ->
-            val total = list.sumOf { it.amount }
-            val totalVat = list.sumOf { it.vat }
-            item(key = "ovh-$month") {
-                Column(modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp)) {
-                    Text(text = month, style = MaterialTheme.typography.titleMedium)
-                    Text("Fjöldi nóta: ${list.size}")
-                    Text("Samtals: ${String.format("%.2f", total)} kr | VSK: ${String.format("%.2f", totalVat)} kr")
+fun OverviewScreen(
+    records: List<InvoiceRecord>,
+    onOpen: (InvoiceRecord) -> Unit,
+    onBack: () -> Unit
+) {
+    // Filters state
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("overview_prefs", 0) }
+    var monthFilterExpanded by remember { mutableStateOf(false) }
+    var selectedMonth by rememberSaveable { mutableStateOf<String?>(prefs.getString("month", null)) }
+    var vendorQuery by rememberSaveable { mutableStateOf(prefs.getString("vendor", "") ?: "") }
+    var sortBy by rememberSaveable { mutableStateOf(SortBy.valueOf(prefs.getString("sort", SortBy.DATE_DESC.name)!!)) }
+
+    val months = remember(records) { records.map { it.monthKey }.distinct().sortedDescending() }
+    val filtered = remember(records, selectedMonth, vendorQuery) {
+        records.filter { rec ->
+            (selectedMonth == null || rec.monthKey == selectedMonth) &&
+            (vendorQuery.isBlank() || rec.vendor.contains(vendorQuery, ignoreCase = true))
+        }
+    }
+    val sorted = remember(filtered, sortBy) {
+        when (sortBy) {
+            SortBy.VENDOR_ASC -> filtered.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.vendor })
+            SortBy.VENDOR_DESC -> filtered.sortedWith(compareByDescending(String.CASE_INSENSITIVE_ORDER) { it.vendor })
+            SortBy.AMOUNT_ASC -> filtered.sortedBy { it.amount }
+            SortBy.AMOUNT_DESC -> filtered.sortedByDescending { it.amount }
+            SortBy.DATE_ASC -> filtered.sortedBy { it.date }
+            SortBy.DATE_DESC -> filtered.sortedByDescending { it.date }
+        }
+    }
+
+    Column(modifier = Modifier.padding(top = 16.dp)) {
+        // Back + Controls row
+        Row(modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = onBack, modifier = Modifier.weight(0.7f)) { Text("Til baka") }
+            Spacer(Modifier.size(8.dp))
+            // Month dropdown
+            Column(modifier = Modifier.weight(1f)) {
+                OutlinedButton(onClick = { monthFilterExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text(selectedMonth ?: "Mánuður: Allir")
                 }
-                Divider()
+                DropdownMenu(expanded = monthFilterExpanded, onDismissRequest = { monthFilterExpanded = false }) {
+                    DropdownMenuItem(text = { Text("Allir mánuðir") }, onClick = {
+                        selectedMonth = null; monthFilterExpanded = false
+                    })
+                    months.forEach { m ->
+                        DropdownMenuItem(text = { Text(m) }, onClick = {
+                            selectedMonth = m; monthFilterExpanded = false
+                        })
+                    }
+                }
             }
+
+            Spacer(Modifier.size(8.dp))
+
+            // Vendor filter
+            OutlinedTextField(
+                value = vendorQuery,
+                onValueChange = { vendorQuery = it },
+                label = { Text("Leita seljanda") },
+                modifier = Modifier.weight(1.2f)
+            )
+        }
+
+        Spacer(Modifier.size(8.dp))
+
+        // Sort buttons
+        Row(modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = {
+                sortBy = when (sortBy) {
+                    SortBy.VENDOR_ASC -> SortBy.VENDOR_DESC
+                    SortBy.VENDOR_DESC -> SortBy.VENDOR_ASC
+                    else -> SortBy.VENDOR_ASC
+                }
+            }, modifier = Modifier.weight(1f)) { Text("Raða: Seljandi") }
+
+            Spacer(Modifier.size(8.dp))
+
+            OutlinedButton(onClick = {
+                sortBy = when (sortBy) {
+                    SortBy.AMOUNT_ASC -> SortBy.AMOUNT_DESC
+                    SortBy.AMOUNT_DESC -> SortBy.AMOUNT_ASC
+                    else -> SortBy.AMOUNT_DESC
+                }
+            }, modifier = Modifier.weight(1f)) { Text("Raða: Upphæð") }
+
+            Spacer(Modifier.size(8.dp))
+
+            OutlinedButton(onClick = {
+                sortBy = when (sortBy) {
+                    SortBy.DATE_ASC -> SortBy.DATE_DESC
+                    SortBy.DATE_DESC -> SortBy.DATE_ASC
+                    else -> SortBy.DATE_DESC
+                }
+            }, modifier = Modifier.weight(1f)) { Text("Raða: Dagsetning") }
+        }
+
+        Spacer(Modifier.size(8.dp))
+
+        // Export CSV
+        Row(modifier = Modifier.fillMaxWidth()) {
+            ExportCsvButton(sorted, modifier = Modifier.weight(1f))
+        }
+
+        // Table header
+        Spacer(Modifier.size(12.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp)
+        ) {
+            Text("Dagsetning", modifier = Modifier.weight(1.1f))
+            Text("Seljandi", modifier = Modifier.weight(2.0f))
+            Text("Upphæð", modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+            Text("VSK", modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+        }
+    HorizontalDivider()
+
+        // Rows
+        LazyColumn {
+            items(sorted, key = { it.id }) { rec ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                        .clickable { onOpen(rec) }
+                ) {
+                    Text(rec.date, modifier = Modifier.weight(1.1f))
+                    Text(rec.vendor, modifier = Modifier.weight(2.0f), maxLines = 1)
+                    Text(String.format("%.2f", rec.amount) + " kr", modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+                    Text(String.format("%.2f", rec.vat) + " kr", modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+                }
+                HorizontalDivider()
+            }
+        }
+    }
+
+    // persist
+    LaunchedEffect(selectedMonth, vendorQuery, sortBy) {
+        prefs.edit().putString("month", selectedMonth).putString("vendor", vendorQuery).putString("sort", sortBy.name).apply()
+    }
+}
+
+private enum class SortBy { VENDOR_ASC, VENDOR_DESC, AMOUNT_ASC, AMOUNT_DESC, DATE_ASC, DATE_DESC }
+
+// CSV export helper
+private fun exportCsv(list: List<InvoiceRecord>, context: android.content.Context) {
+    val csv = buildString {
+        appendLine("id,date,month,vendor,amount,vat,imagePath")
+        list.forEach { r ->
+            appendLine("${r.id},${r.date},${r.monthKey},\"${r.vendor.replace("\"", "\"\"")}\",${String.format("%.2f", r.amount)},${String.format("%.2f", r.vat)},${r.imagePath}")
+        }
+    }
+    val file = File(context.filesDir, "notur.csv")
+    file.writeText(csv, Charsets.UTF_8)
+    val uri = androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".provider", file)
+    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+        type = "text/csv"
+        putExtra(android.content.Intent.EXTRA_SUBJECT, "Nótur CSV")
+        putExtra(android.content.Intent.EXTRA_STREAM, uri)
+        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(intent)
+}
+
+@Composable
+private fun ExportCsvButton(list: List<InvoiceRecord>, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    Button(onClick = { exportCsv(list, context) }, modifier = modifier) { Text("Flytja út CSV") }
+}
+
+@Composable
+fun NoteDetailScreen(record: InvoiceRecord, onBack: () -> Unit) {
+    val context = LocalContext.current
+    val store = remember { InvoiceStore(context) }
+    var vendor by rememberSaveable(record.id) { mutableStateOf(record.vendor) }
+    var date by rememberSaveable(record.id) { mutableStateOf(record.date) }
+    var amount by rememberSaveable(record.id) { mutableStateOf(record.amount.toString()) }
+    var vat by rememberSaveable(record.id) { mutableStateOf(record.vat.toString()) }
+    val bmp = remember(record.imagePath) { loadThumbnail(record.imagePath, 2048) }
+
+    Column(modifier = Modifier.padding(16.dp)) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = onBack, modifier = Modifier.weight(1f)) { Text("Til baka") }
+            Spacer(Modifier.size(8.dp))
+            OutlinedButton(onClick = {
+                val file = File(record.imagePath)
+                val uri = androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".provider", file)
+                val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = "image/*"
+                    putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(intent)
+            }, modifier = Modifier.weight(1f)) { Text("Deila mynd") }
+        }
+
+        Spacer(Modifier.size(8.dp))
+        Row(modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = {
+                val file = File(record.imagePath)
+                val uri = androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".provider", file)
+                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                    setDataAndType(uri, "image/*")
+                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(intent)
+            }, modifier = Modifier.weight(1f)) { Text("Opna mynd") }
+
+            Spacer(Modifier.size(8.dp))
+
+            OutlinedButton(onClick = {
+                store.deleteById(record.id)
+                onBack()
+            }, modifier = Modifier.weight(1f)) { Text("Eyða") }
+        }
+
+        Spacer(Modifier.size(12.dp))
+        OutlinedTextField(value = vendor, onValueChange = { vendor = it }, label = { Text("Seljandi") }, modifier = Modifier.fillMaxWidth())
+        Spacer(Modifier.size(8.dp))
+        OutlinedTextField(value = date, onValueChange = { date = it }, label = { Text("Dagsetning (yyyy-MM-dd)") }, modifier = Modifier.fillMaxWidth())
+        Spacer(Modifier.size(8.dp))
+        OutlinedTextField(value = amount, onValueChange = { amount = it }, label = { Text("Upphæð") }, modifier = Modifier.fillMaxWidth())
+        Spacer(Modifier.size(8.dp))
+        OutlinedTextField(value = vat, onValueChange = { vat = it }, label = { Text("VSK") }, modifier = Modifier.fillMaxWidth())
+        Spacer(Modifier.size(12.dp))
+        Button(onClick = {
+            val updated = record.copy(
+                vendor = vendor,
+                date = date,
+                amount = amount.toDoubleOrNull() ?: record.amount,
+                vat = vat.toDoubleOrNull() ?: record.vat
+            )
+            store.update(updated)
+            onBack()
+        }) { Text("Vista") }
+
+        Spacer(Modifier.size(12.dp))
+        if (bmp != null) {
+            Image(bitmap = bmp.asImageBitmap(), contentDescription = null, modifier = Modifier.fillMaxWidth())
+        } else {
+            Text("Mynd fannst ekki: ${record.imagePath}")
         }
     }
 }
 
 @Composable
-fun CameraPreview(onPhotoCaptured: (String) -> Unit) {
+fun CameraPreview(onImageCaptureReady: (ImageCapture) -> Unit) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
@@ -474,25 +739,8 @@ fun CameraPreview(onPhotoCaptured: (String) -> Unit) {
                 }
             }
         }, ContextCompat.getMainExecutor(ctx))
+        // Expose ImageCapture to caller when available
+        imageCapture?.let { onImageCaptureReady(it) }
         frameLayout
     }, modifier = Modifier.height(300.dp))
-
-    Button(onClick = {
-        val photoFile = File(context.filesDir, "nota.jpg")
-        val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
-        imageCapture?.takePicture(
-            outputOptions,
-            ContextCompat.getMainExecutor(context),
-            object : ImageCapture.OnImageSavedCallback {
-                override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                    onPhotoCaptured(photoFile.absolutePath)
-                }
-                override fun onError(exception: ImageCaptureException) {
-                    Log.e("CameraPreview", "Photo capture failed: ${exception.message}", exception)
-                }
-            }
-        )
-    }, modifier = Modifier.padding(top = 16.dp)) {
-        Text("Taka mynd af nótu")
-    }
 }

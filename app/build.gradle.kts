@@ -74,8 +74,8 @@ android {
 		kotlinCompilerExtensionVersion = "1.5.14"
 	}
 
-	// Workaround Windows file-lock issues by using a fresh build dir
-	setBuildDir("build_android")
+	// Workaround Windows file-lock issues by using a fresh build dir (bypass R.jar lock)
+	setBuildDir("build_android2")
 }
 
 dependencies {
@@ -85,6 +85,9 @@ dependencies {
 	implementation(platform("androidx.compose:compose-bom:2024.04.01"))
 	implementation("androidx.compose.ui:ui")
 	implementation("androidx.compose.ui:ui-graphics")
+	implementation("androidx.compose.foundation:foundation")
+	// Include foundation-layout for Modifier.weight and other layout utilities
+	implementation("androidx.compose.foundation:foundation-layout")
 	implementation("androidx.compose.material3:material3")
 	implementation("androidx.compose.ui:ui-tooling-preview")
 

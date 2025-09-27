@@ -32,6 +32,21 @@ class InvoiceStore(private val context: Context) {
         saveAll(current)
     }
 
+    fun deleteById(id: Long) {
+        val current = loadAll().toMutableList()
+        val newList = current.filterNot { it.id == id }
+        saveAll(newList)
+    }
+
+    fun update(record: InvoiceRecord) {
+        val current = loadAll().toMutableList()
+        val idx = current.indexOfFirst { it.id == record.id }
+        if (idx >= 0) {
+            current[idx] = record
+            saveAll(current)
+        }
+    }
+
     private fun toJson(r: InvoiceRecord): JSONObject = JSONObject().apply {
         put("id", r.id)
         put("date", r.date)

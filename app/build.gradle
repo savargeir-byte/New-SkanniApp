@@ -72,7 +72,7 @@ android {
 	}
 
 	// Use a fresh build directory to avoid stale Windows file locks under app/build
-	setBuildDir 'build_android'
+	setBuildDir 'build_android2'
 }
 
 dependencies {
@@ -82,6 +82,8 @@ dependencies {
 	implementation platform('androidx.compose:compose-bom:2024.04.01')
 	implementation 'androidx.compose.ui:ui'
 	implementation 'androidx.compose.ui:ui-graphics'
+	implementation 'androidx.compose.foundation:foundation'
+	implementation 'androidx.compose.foundation:foundation-layout'
 	implementation 'androidx.compose.material3:material3'
 	implementation 'androidx.compose.ui:ui-tooling-preview'
 

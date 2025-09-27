@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="m3_ref_palette_dynamic_neutral20">#333333</color>
+    <color name="m3_ref_palette_dynamic_neutral90">#E6E1E5</color>
+    <color name="m3_ref_palette_dynamic_neutral_variant10">#191919</color>
+    <color name="m3_ref_palette_dynamic_neutral_variant12">#1F1F1F</color>
+    <color name="m3_ref_palette_dynamic_neutral_variant17">#2B2B2B</color>
+    <color name="m3_ref_palette_dynamic_neutral_variant22">#373737</color>
+    <color name="m3_ref_palette_dynamic_neutral_variant24">#3B3B3B</color>
+    <color name="m3_ref_palette_dynamic_neutral_variant30">#4D4D4D</color>
+    <color name="m3_ref_palette_dynamic_neutral_variant4">#0A0A0A</color>
+    <color name="m3_ref_palette_dynamic_neutral_variant6">#111111</color>
+    <color name="m3_ref_palette_dynamic_neutral_variant60">#999999</color>
+    <color name="m3_ref_palette_dynamic_neutral_variant80">#CCCCCC</color>
+    <color name="m3_ref_palette_dynamic_neutral_variant87">#DCDCDC</color>
+    <color name="m3_ref_palette_dynamic_neutral_variant92">#EBEBEB</color>
+    <color name="m3_ref_palette_dynamic_neutral_variant94">#F0F0F0</color>
+    <color name="m3_ref_palette_dynamic_neutral_variant96">#F5F5F5</color>
+    <color name="m3_ref_palette_dynamic_neutral_variant98">#FAFAFA</color>
+    <color name="m3_ref_palette_dynamic_primary20">#21005D</color>
+    <color name="m3_ref_palette_dynamic_primary30">#4F378B</color>
+    <color name="m3_ref_palette_dynamic_primary40">#6750A4</color>
+    <color name="m3_ref_palette_dynamic_primary80">#D0BCFF</color>
+    <color name="m3_ref_palette_dynamic_primary90">#EADDFF</color>
+    <color name="m3_ref_palette_dynamic_secondary20">#1D192B</color>
+    <color name="m3_ref_palette_dynamic_secondary30">#4A4458</color>
+    <color name="m3_ref_palette_dynamic_secondary80">#CCC2DC</color>
+    <color name="m3_ref_palette_dynamic_secondary90">#E8DEF8</color>
+    <color name="m3_ref_palette_dynamic_tertiary20">#31111D</color>
+    <color name="m3_ref_palette_dynamic_tertiary30">#7D5260</color>
+    <color name="m3_ref_palette_dynamic_tertiary80">#EFB8C8</color>
+    <color name="m3_ref_palette_dynamic_tertiary90">#FFD8E4</color>
+</resources>
