@@ -1,5 +1,9 @@
 [
     {
+        "merged": "com.example.notescanner.app-debug-56:/drawable_bg_watermark.png.flat",
+        "source": "com.example.notescanner.app-main-58:/drawable/bg_watermark.png"
+    },
+    {
         "merged": "com.example.notescanner.app-debug-56:/xml_data_extraction_rules.xml.flat",
         "source": "com.example.notescanner.app-main-58:/xml/data_extraction_rules.xml"
     },
@@ -98,5 +102,9 @@
     {
         "merged": "com.example.notescanner.app-debug-56:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
         "source": "com.example.notescanner.app-main-58:/mipmap-anydpi-v26/ic_launcher_round.xml"
+    },
+    {
+        "merged": "com.example.notescanner.app-debug-56:/drawable_ic_app_logo.png.flat",
+        "source": "com.example.notescanner.app-main-58:/drawable/ic_app_logo.png"
     }
 ]

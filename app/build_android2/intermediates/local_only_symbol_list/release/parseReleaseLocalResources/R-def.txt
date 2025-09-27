@@ -2,6 +2,7 @@ R_DEF: Internal format may change without notice
 local
 anim design_bottom_sheet_slide_in
 color black
+color ic_launcher_bg_green
 color m3_ref_palette_dynamic_neutral20
 color m3_ref_palette_dynamic_neutral90
 color m3_ref_palette_dynamic_neutral_variant10
@@ -39,6 +40,8 @@ color teal_200
 color teal_700
 color white
 drawable bg_invoice
+drawable bg_watermark
+drawable ic_app_logo
 drawable ic_launcher_background
 drawable ic_launcher_foreground
 drawable ic_receipt_bg

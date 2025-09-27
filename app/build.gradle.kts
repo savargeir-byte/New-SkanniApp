@@ -75,7 +75,7 @@ android {
 	}
 
 	// Workaround Windows file-lock issues by using a fresh build dir (bypass R.jar lock)
-	setBuildDir("build_android2")
+	setBuildDir("build_android3")
 }
 
 dependencies {
@@ -99,6 +99,9 @@ dependencies {
 	// ML Kit OCR via Google Play services delivery to avoid bundling native .so in APK
 	// This mitigates 16 KB page alignment warnings on x86_64 emulator and keeps the API unchanged
 	implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
+
+	// ML Kit Document Scanner (Play services) for better receipt/document capture UX
+	implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0-beta3")
 
 	coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.3")
 

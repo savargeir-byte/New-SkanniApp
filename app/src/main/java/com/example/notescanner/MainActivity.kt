@@ -34,8 +34,10 @@ import androidx.camera.view.PreviewView
 import android.widget.FrameLayout
 import androidx.compose.runtime.saveable.rememberSaveable
 import android.util.Log
+import android.content.IntentSender
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.IntentSenderRequest
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -58,6 +60,10 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.io.File
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanner
+import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
 
 class MainActivity : ComponentActivity() {
     private lateinit var imageCapture: ImageCapture
@@ -119,6 +125,49 @@ fun NoteScannerApp() {
     // Expose ImageCapture from CameraPreview so the main Scan button can trigger capture
     var imageCaptureRef by remember { mutableStateOf<ImageCapture?>(null) }
 
+    fun handleScannedImageUri(imageUri: Uri) {
+        val today = getTodayIso()
+        val monthKey = getCurrentMonthKey()
+        val monthFolder = File(context.filesDir, monthKey)
+        if (!monthFolder.exists()) monthFolder.mkdirs()
+        val destFile = File(monthFolder, "nota_${System.currentTimeMillis()}.jpg")
+        try {
+            context.contentResolver.openInputStream(imageUri)?.use { input ->
+                destFile.outputStream().use { output -> input.copyTo(output) }
+            }
+            // OCR and persist
+            OcrUtil.recognizeTextFromImage(context, destFile) { text ->
+                ocrResult = text
+                val parsed = OcrUtil.parse(text)
+                val vendor = parsed.vendor ?: text.lines().firstOrNull()?.take(64) ?: "Óþekkt"
+                val vatExtract = OcrUtil.extractVatAmounts(text)
+                val amount = vatExtract.total ?: parsed.amount ?: 0.0
+                val vat = vatExtract.tax ?: parsed.vat ?: 0.0
+
+                val excelFile = File(context.filesDir, "reikningar.xlsx")
+                ExcelUtil.appendToExcel(
+                    listOf(destFile.name, today, monthKey, vendor, String.format("%.2f", amount), String.format("%.2f", vat)),
+                    excelFile
+                )
+                lastExcelPath = excelFile.absolutePath
+
+                val record = InvoiceRecord(
+                    id = System.currentTimeMillis(),
+                    date = today,
+                    monthKey = monthKey,
+                    vendor = vendor,
+                    amount = amount,
+                    vat = vat,
+                    imagePath = destFile.absolutePath
+                )
+                store.add(record)
+                refreshRecords()
+            }
+        } catch (e: Exception) {
+            Log.e("NoteScanner", "Failed to save scanned image", e)
+        }
+    }
+
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -143,6 +192,19 @@ fun NoteScannerApp() {
         ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.CAMERA)
     } == true
     val permanentlyDenied = !hasCameraPermission && !shouldShowRationale && askedPermissionOnce
+
+    // Launcher for ML Kit Document Scanner (beta1) using IntentSender-based flow
+    val scannerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val res = GmsDocumentScanningResult.fromActivityResultIntent(result.data)
+            val uri = res?.pages?.firstOrNull()?.imageUri
+            if (uri != null) {
+                handleScannedImageUri(uri)
+            }
+        }
+    }
 
     // Auto-request CAMERA on first open
     LaunchedEffect(hasCameraPermission) {
@@ -285,82 +347,43 @@ fun NoteScannerApp() {
         }
         }
 
-        // Bottom primary scan button
-        Button(
+        // Bottom primary scan button — only on the home screen (no lists/overview/detail)
+        if (!showList && !showOverview && selectedRecord == null) Button(
             onClick = {
                 showList = false
                 showOverview = false
-                val granted = ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.CAMERA
-                ) == PackageManager.PERMISSION_GRANTED
+                val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
                 if (!granted) {
                     cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                     return@Button
                 }
 
-                if (!isCameraStarted) {
-                    isCameraStarted = true
-                } else {
-                    val ic = imageCaptureRef
-                    if (ic != null) {
-                        try {
-                            val photoFile = File(context.filesDir, "nota.jpg")
-                            val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
-                            ic.takePicture(
-                                outputOptions,
-                                ContextCompat.getMainExecutor(context),
-                                object : ImageCapture.OnImageSavedCallback {
-                                    override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                                        lastPhotoPath = photoFile.absolutePath
-                                        isCameraStarted = false
-
-                                        val today = getTodayIso()
-                                        val monthKey = getCurrentMonthKey()
-                                        val monthFolder = File(context.filesDir, monthKey)
-                                        if (!monthFolder.exists()) monthFolder.mkdirs()
-                                        val destFile = File(monthFolder, File(photoFile.absolutePath).name)
-                                        File(photoFile.absolutePath).copyTo(destFile, overwrite = true)
-
-                                        OcrUtil.recognizeTextFromImage(context, destFile) { text ->
-                                            ocrResult = text
-                                            val parsed = OcrUtil.parse(text)
-                                            val vendor = parsed.vendor ?: text.lines().firstOrNull()?.take(64) ?: "Óþekkt"
-                                            // Try offline VSK extraction for amounts
-                                            val vatExtract = OcrUtil.extractVatAmounts(text)
-                                            val amount = vatExtract.total ?: parsed.amount ?: 0.0
-                                            val vat = vatExtract.tax ?: parsed.vat ?: 0.0
-                                            val dagsetning = today
-
-                                            val excelFile = File(context.filesDir, "reikningar.xlsx")
-                                            ExcelUtil.appendToExcel(
-                                                listOf(destFile.name, dagsetning, monthKey, vendor, String.format("%.2f", amount), String.format("%.2f", vat)),
-                                                excelFile
-                                            )
-                                            lastExcelPath = excelFile.absolutePath
-
-                                            val record = InvoiceRecord(
-                                                id = System.currentTimeMillis(),
-                                                date = dagsetning,
-                                                monthKey = monthKey,
-                                                vendor = vendor,
-                                                amount = amount,
-                                                vat = vat,
-                                                imagePath = destFile.absolutePath
-                                            )
-                                            store.add(record)
-                                            refreshRecords()
-                                        }
-                                    }
-                                    override fun onError(exception: ImageCaptureException) {
-                                        Log.e("NoteScanner", "Photo capture failed: ${exception.message}", exception)
-                                    }
-                                }
-                            )
-                        } catch (e: Exception) {
-                            Log.e("NoteScanner", "Capture invoke failed", e)
+                // Launch ML Kit Document Scanner instead of manual CameraX capture
+                val options = GmsDocumentScannerOptions.Builder()
+                    .setScannerMode(GmsDocumentScannerOptions.SCANNER_MODE_FULL)
+                    .setGalleryImportAllowed(true)
+                    .setPageLimit(1)
+                    .setResultFormats(
+                        GmsDocumentScannerOptions.RESULT_FORMAT_JPEG,
+                        GmsDocumentScannerOptions.RESULT_FORMAT_PDF
+                    )
+                    .build()
+                val scanner: GmsDocumentScanner = GmsDocumentScanning.getClient(options)
+                val act = activity
+                if (act != null) {
+                    scanner.getStartScanIntent(act)
+                        .addOnSuccessListener { intentSender: IntentSender ->
+                            val request = IntentSenderRequest.Builder(intentSender).build()
+                            scannerLauncher.launch(request)
                         }
-                    }
+                        .addOnFailureListener { err ->
+                            Log.w("NoteScanner", "Document scanner failed to get intent, falling back to CameraX", err)
+                            // Fallback to CameraX preview flow
+                            isCameraStarted = true
+                        }
+                } else {
+                    // If no activity available, fallback
+                    isCameraStarted = true
                 }
             },
             modifier = Modifier
@@ -370,14 +393,30 @@ fun NoteScannerApp() {
                 .height(56.dp)
         ) { Text("Skanna nótu") }
 
-        // Footer branding at bottom
-        Text(
-            text = "IceVeflausnir",
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 12.dp),
-            style = MaterialTheme.typography.bodySmall
-        )
+        // Footer logo at bottom (replaces text). Prefer assets/logo.png if available.
+        val logoBmp: android.graphics.Bitmap? = remember {
+            try { context.assets.open("logo.png").use { android.graphics.BitmapFactory.decodeStream(it) } }
+            catch (_: Exception) { null }
+        }
+        if (logoBmp != null) {
+            Image(
+                bitmap = logoBmp.asImageBitmap(),
+                contentDescription = "Logo",
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 8.dp)
+                    .size(28.dp)
+            )
+        } else {
+            Image(
+                painter = painterResource(id = R.drawable.ic_app_logo),
+                contentDescription = "Logo",
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 8.dp)
+                    .size(28.dp)
+            )
+        }
     }
 }
 

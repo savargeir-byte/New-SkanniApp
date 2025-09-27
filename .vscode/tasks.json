@@ -60,6 +60,19 @@
 				"-Rebuild"
 			],
 			"problemMatcher": []
+		},
+		{
+			"label": "Serve APK folder over HTTP",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"$f='C:\\Users\\Computer\\Documents\\GitHub\\SkanniApp\\app\\build_android3\\outputs\\apk\\debug'; if(!(Test-Path $f)){ $f='C:\\Users\\Computer\\Documents\\GitHub\\SkanniApp\\app\\build\\outputs\\apk\\debug' }; cd $f; python -m http.server 8089"
+			],
+			"isBackground": true
 		}
 	]
 }
