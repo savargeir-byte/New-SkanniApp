@@ -48,6 +48,10 @@ android {
 			proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 			if (hasSigning) {
 				signingConfig signingConfigs.release
+			} else {
+				// Fallback: sign release with the debug keystore so the APK is installable
+				// (useful for GitHub Releases and manual installs; do NOT use for Play Store)
+				signingConfig signingConfigs.debug
 			}
 		}
 		debug {
