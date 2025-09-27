@@ -101,7 +101,8 @@ dependencies {
 	implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
 
 	// ML Kit Document Scanner (Play services) for better receipt/document capture UX
-	implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0-beta3")
+	// Use beta1 which is available on Maven Central/Google and works with IntentSender API
+	implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0-beta1")
 
 	coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.3")
 

@@ -30,21 +30,25 @@ jobs:
           yes | sdkmanager --licenses
           sdkmanager "platform-tools" "platforms;android-34" "build-tools;35.0.0"
 
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Make gradlew executable
         run: chmod +x gradlew
 
       - name: Build release APK
-        run: ./gradlew --no-daemon clean :app:assembleRelease
+        run: ./gradlew --no-daemon clean :app:assembleRelease --stacktrace --info
 
       - name: Verify APK exists
-        run: ls -la app/build_android3/outputs/apk/release || ls -la app/build/outputs/apk/release
+        run: |
+          echo "Listing app/build_android3/outputs/apk/release" && ls -la app/build_android3/outputs/apk/release || true
+          echo "Listing app/build/outputs/apk/release" && ls -la app/build/outputs/apk/release || true
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             app/build_android3/outputs/apk/release/app-release.apk
-            app/build/outputs/apk/release/app-release.apk
           draft: false
           prerelease: false
         env:
