@@ -46,6 +46,8 @@ object OcrUtil {
         val lines = ocrText.lines().map { it.trim() }.filter { it.isNotEmpty() }
         val numPattern = "([0-9]{1,3}(?:[. ][0-9]{3})*(?:,[0-9]{1,2})?|[0-9]+(?:,[0-9]{1,2})?)"
         val pctPattern = "([0-9]{1,2}(?:,[0-9]{1,2})?)\\s*%"
+        val numRe = Regex(numPattern)
+        val pctRe = Regex(pctPattern)
 
         var subtotal: Double? = null
         var tax: Double? = null
@@ -56,25 +58,41 @@ object OcrUtil {
             val l = line.lowercase()
 
             if (total == null && l.contains(Regex("\\b(heild|alls|samtals|með\\s*vsk|m/\\s*vsk|total|amount)\\b"))) {
-                Regex(numPattern).find(line)?.let { total = parseNumber(it.value) }
+                numRe.find(line)?.let { total = parseNumber(it.value) }
             }
             if (subtotal == null && l.contains(Regex("\\b(án\\s*vsk|verð\\s*án\\s*vsk|subtotal|nettó|netto)\\b"))) {
-                Regex(numPattern).find(line)?.let { subtotal = parseNumber(it.value) }
+                numRe.find(line)?.let { subtotal = parseNumber(it.value) }
             }
 
-            if (l.contains("vsk") || l.contains("virðisauk")) {
-                Regex(pctPattern).findAll(line).forEach { m ->
-                    val rate = parseNumber(m.groupValues[1]) ?: return@forEach
-                    val nums = Regex(numPattern).findAll(line).map { it.value }.toList()
-                    nums.lastOrNull()?.let { amtStr ->
-                        parseNumber(amtStr)?.let { amt -> rateMap[rate] = (rateMap[rate] ?: 0.0) + amt }
-                    }
-                }
-                if (!Regex(pctPattern).containsMatchIn(line) && tax == null) {
-                    Regex(numPattern).findAll(line).map { it.value }.lastOrNull()?.let { tax = parseNumber(it) }
+            // Collect per-rate VSK amounts. Support lines both with and without explicit "vsk" text.
+            var hadPct = false
+            pctRe.findAll(line).forEach { m ->
+                hadPct = true
+                val rate = parseNumber(m.groupValues[1]) ?: return@forEach
+                // Try to bind the amount appearing after the percentage on the same line.
+                val afterIdx = m.range.last + 1
+                val amtStr = if (afterIdx in 0..line.lastIndex) {
+                    numRe.find(line.substring(afterIdx))?.value
+                } else null
+                val chosen = amtStr ?: numRe.findAll(line).map { it.value }.lastOrNull()
+                chosen?.let { s ->
+                    parseNumber(s)?.let { amt -> rateMap[rate] = (rateMap[rate] ?: 0.0) + amt }
                 }
             }
+
+            // If a tax line mentions VSK but no percentage, treat the last number as the total VSK amount.
+            if (!hadPct && tax == null && (l.contains("vsk") || l.contains("virðisauk"))) {
+                numRe.findAll(line).map { it.value }.lastOrNull()?.let { tax = parseNumber(it) }
+            }
         }
+
+        // If individual rate amounts were found but total tax was not, derive it as the sum.
+        if (tax == null && rateMap.isNotEmpty()) {
+            tax = rateMap.values.sum()
+        }
+
+        // Ensure we always include the common Icelandic VAT rates 24% and 11% in the map.
+        listOf(24.0, 11.0).forEach { r -> if (!rateMap.containsKey(r)) rateMap[r] = 0.0 }
 
         when {
             subtotal != null && total != null && tax == null -> tax = (total!! - subtotal!!).let { if (it >= -0.01) it else null }
