@@ -3,9 +3,10 @@
   - Detect a local JDK 21 (Temurin/Microsoft/Oracle) or install Temurin 21 via winget
   - Set JAVA_HOME for this session
   - Bootstrap Android SDK cmdline-tools if missing
-  - Accept licenses and install platform-tools, platforms;android-34, build-tools;34.0.0
+  - Accept licenses and install platform-tools, platforms;android-34, build-tools;35.0.0
+  - Stop Gradle daemons and clean build dirs to avoid Windows file locks
   - Run Gradle clean + :app:assembleDebug (forces org.gradle.java.home=JAVA_HOME)
-  - Save verbose output to ./gradle-build.log and print APK info on success
+  - Save verbose output to ./gradle-build.log and print APK info on success (supports custom build dir build_android3)
 #>
 
 param(
@@ -118,7 +119,8 @@ function Ensure-AndroidSdk($repoRoot) {
 
   # Accept licenses and ensure required packages
   $platform34 = Join-Path $sdk 'platforms\android-34'
-  $buildTools = Join-Path $sdk 'build-tools\34.0.0'
+  # Match module buildToolsVersion in app/build.gradle(.kts)
+  $buildTools = Join-Path $sdk 'build-tools\35.0.0'
   if ((-not (Test-Path $platform34)) -or (-not (Test-Path $buildTools))) {
     if (-not (Test-Path $sdkmgr)) {
       Write-Warning "sdkmanager not available to install missing components. Attempting to proceed with existing SDK; build may still succeed if another build-tools version is present."
@@ -135,7 +137,9 @@ function Ensure-AndroidSdk($repoRoot) {
 
     Write-Host "Installing required SDK components ..." -ForegroundColor Yellow
     try { & $sdkmgr --install 'platform-tools' 'platforms;android-34' 'build-tools;34.0.0' } catch {
-      Write-Warning "sdkmanager failed to install packages. Use Android Studio > SDK Manager to install Android 34 + Build-Tools 34.0.0."
+      # Retry with 35.0.0 if 34.0.0 fails or vice-versa
+      try { & $sdkmgr --install 'build-tools;35.0.0' } catch {}
+      Write-Warning "sdkmanager failed to install some packages. Use Android Studio > SDK Manager to install Android 34 + Build-Tools 35.0.0."
       throw "Required SDK components missing"
     }
   }
@@ -189,17 +193,40 @@ Ensure-AndroidSdk $repoRoot | Out-Null
 Write-Header 'Run Gradle build (clean + assembleDebug)'
 $gradleLog = Join-Path $repoRoot 'gradle-build.log'
 try {
+  # Proactively stop any running daemons and clean previous outputs to avoid locked R.jar on Windows
+  try { & .\gradlew.bat --stop | Out-Null } catch {}
+  # Clean both default and custom build directories
+  $appDir = Join-Path $repoRoot 'app'
+  @('build', 'build_android3') | ForEach-Object {
+    $bd = Join-Path $appDir $_
+    if (Test-Path $bd) {
+      Write-Host "Removing $bd ..." -ForegroundColor Yellow
+  try { Remove-Item -Path $bd -Recurse -Force -ErrorAction Stop } catch { Write-Warning "Failed to delete ${bd}: $_" }
+    }
+  }
+
   & .\gradlew.bat -Dorg.gradle.java.home="$env:JAVA_HOME" --no-daemon --stacktrace --info clean :app:assembleDebug --rerun-tasks *>&1 | Tee-Object -FilePath $gradleLog
 } catch {
   Write-Error "Gradle invocation failed: $_"; exit 1
 }
 
 Write-Header 'APK output'
-$apkDir = Join-Path $repoRoot 'app\build\outputs\apk\debug'
-if (-not (Test-Path $apkDir)) { throw "APK output folder not found: $apkDir" }
-Get-ChildItem -Path $apkDir -File | Sort-Object LastWriteTime -Descending | Select-Object Name,LastWriteTime,Length | Format-Table -AutoSize
 
-Write-Host "`nOpen folder: $apkDir" -ForegroundColor Cyan
-try { Start-Process $apkDir } catch {}
+# Support custom build directory (build_android3) first, then fallback to default
+$apkDirs = @(
+  (Join-Path $repoRoot 'app\build_android3\outputs\apk\debug'),
+  (Join-Path $repoRoot 'app\build\outputs\apk\debug')
+)
+$found = $false
+foreach ($dir in $apkDirs) {
+  if (Test-Path $dir) {
+    $found = $true
+    Write-Host "Scanning APKs in $dir" -ForegroundColor Cyan
+    Get-ChildItem -Path $dir -File | Sort-Object LastWriteTime -Descending | Select-Object Name,LastWriteTime,Length | Format-Table -AutoSize
+    try { Start-Process $dir } catch {}
+    break
+  }
+}
+if (-not $found) { throw "APK output folder not found in: $($apkDirs -join ', ')" }
 
 Write-Host "`nDone. If the build failed, share the tail of $gradleLog for help." -ForegroundColor Green
