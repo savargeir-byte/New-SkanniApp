@@ -54,7 +54,77 @@ object OcrUtil {
         var total: Double? = null
         val rateMap = mutableMapOf<Double, Double>()
 
-        lines.forEach { line ->
+        // 1) Try structured table capture: line like "Vsk %  Vsk  Nettó  Upphæð" followed by rows like "11% 222,97 2027,03 2250,00"
+        var tableStart = -1
+        var tableEnd = -1
+        run {
+            val headerIdx = lines.indexOfFirst { l ->
+                val ll = l.lowercase()
+                ll.contains("vsk") && (ll.contains("%") || ll.contains("prós")) &&
+                        (ll.contains("nett") || ll.contains("netto")) &&
+                        (ll.contains("upph") || ll.contains("heild") || ll.contains("samtals"))
+            }
+            if (headerIdx >= 0) {
+                val rowRe4 = Regex("^\\s*([0-9]{1,2}(?:,[0-9]{1,2})?)\\s*%\\s+" +
+                        "([0-9][0-9\\., ]*)\\s+" +
+                        "([0-9][0-9\\., ]*)\\s+" +
+                        "([0-9][0-9\\., ]*)\\s*$")
+                val rowRe3 = Regex("^\\s*([0-9]{1,2}(?:,[0-9]{1,2})?)\\s*%\\s+" +
+                        "([0-9][0-9\\., ]*)\\s+" +
+                        "([0-9][0-9\\., ]*)\\s*$")
+
+                var i = headerIdx + 1
+                var rows = 0
+                var accNet = 0.0
+                var accTax = 0.0
+                var accTotal = 0.0
+                while (i < lines.size) {
+                    val line = lines[i]
+                    val m4 = rowRe4.find(line)
+                    val m3 = rowRe3.find(line)
+                    if (m4 != null || m3 != null) {
+                        rows++
+                        tableStart = if (tableStart == -1) headerIdx else tableStart
+                        tableEnd = i
+                        val rateStr = (m4?:m3)!!.groupValues[1]
+                        val rate = parseNumber(rateStr)
+                        var vTax: Double? = null
+                        var vNet: Double? = null
+                        var vSum: Double? = null
+                        if (m4 != null) {
+                            vTax = parseNumber(m4.groupValues[2])
+                            vNet = parseNumber(m4.groupValues[3])
+                            vSum = parseNumber(m4.groupValues[4])
+                        } else if (m3 != null) {
+                            // Assume columns are VSK and Nettó; derive Upphæð if possible later
+                            vTax = parseNumber(m3.groupValues[2])
+                            vNet = parseNumber(m3.groupValues[3])
+                            vSum = if (vTax != null && vNet != null) vTax + vNet else null
+                        }
+                        if (rate != null) {
+                            val current = rateMap[rate] ?: 0.0
+                            if (vTax != null) rateMap[rate] = current + vTax
+                        }
+                        if (vNet != null) accNet += vNet
+                        if (vTax != null) accTax += vTax
+                        if (vSum != null) accTotal += vSum else if (vNet != null && vTax != null) accTotal += vNet + vTax
+                    } else {
+                        // Stop when table ends (hit a non-matching line after at least one row)
+                        if (rows > 0) break
+                    }
+                    i++
+                }
+                if (rows > 0) {
+                    if (accTax > 0.0) tax = accTax
+                    if (accNet > 0.0) subtotal = accNet
+                    if (accTotal > 0.0) total = accTotal
+                }
+            }
+        }
+
+        lines.forEachIndexed { idx, line ->
+            // Skip table lines to prevent double counting
+            if (tableStart >= 0 && idx >= tableStart && idx <= tableEnd) return@forEachIndexed
             val l = line.lowercase()
 
             if (total == null && l.contains(Regex("\\b(heild|alls|samtals|með\\s*vsk|m/\\s*vsk|total|amount)\\b"))) {
