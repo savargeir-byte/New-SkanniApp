@@ -678,6 +678,26 @@ fun NoteDetailScreen(record: InvoiceRecord, onBack: () -> Unit) {
     var vat by rememberSaveable(record.id) { mutableStateOf(record.vat.toString()) }
     val bmp = remember(record.imagePath) { loadThumbnail(record.imagePath, 2048) }
 
+    // Compute VAT breakdown from the image on demand to show 11%/24% sundurliðun
+    var vatExtraction by rememberSaveable(record.id) { mutableStateOf<OcrUtil.VatExtraction?>(null) }
+    var vatLoading by rememberSaveable(record.id) { mutableStateOf(false) }
+    LaunchedEffect(record.id) {
+        // Kick off OCR once when opening detail
+        if (!vatLoading && vatExtraction == null) {
+            vatLoading = true
+            try {
+                val f = File(record.imagePath)
+                OcrUtil.recognizeTextFromImage(context, f) { text ->
+                    val ext = OcrUtil.extractVatAmounts(text)
+                    vatExtraction = ext
+                    vatLoading = false
+                }
+            } catch (t: Throwable) {
+                vatLoading = false
+            }
+        }
+    }
+
     Column(modifier = Modifier.padding(16.dp)) {
         Row(modifier = Modifier.fillMaxWidth()) {
             OutlinedButton(onClick = onBack, modifier = Modifier.weight(1f)) { Text("Til baka") }
@@ -722,6 +742,37 @@ fun NoteDetailScreen(record: InvoiceRecord, onBack: () -> Unit) {
         OutlinedTextField(value = amount, onValueChange = { amount = it }, label = { Text("Upphæð") }, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.size(8.dp))
         OutlinedTextField(value = vat, onValueChange = { vat = it }, label = { Text("VSK") }, modifier = Modifier.fillMaxWidth())
+
+        // VSK sundurliðun — sýna 24% og 11%, nettó og heild ef fáanlegt
+        Spacer(Modifier.size(12.dp))
+        Text("VSK sundurliðun", style = MaterialTheme.typography.titleMedium)
+        HorizontalDivider()
+        if (vatLoading && vatExtraction == null) {
+            Text("Les VSK úr mynd…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        vatExtraction?.let { ext ->
+            val r24 = ext.rates[24.0] ?: 0.0
+            val r11 = ext.rates[11.0] ?: 0.0
+            Column {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("VSK 24%")
+                    Text(String.format("%.2f kr", r24))
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("VSK 11%")
+                    Text(String.format("%.2f kr", r11))
+                }
+                Spacer(Modifier.size(4.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Nettó")
+                    Text(String.format("%.2f kr", ext.subtotal ?: (record.amount - record.vat)))
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Heild")
+                    Text(String.format("%.2f kr", ext.total ?: record.amount))
+                }
+            }
+        }
         Spacer(Modifier.size(12.dp))
         Button(onClick = {
             val updated = record.copy(
