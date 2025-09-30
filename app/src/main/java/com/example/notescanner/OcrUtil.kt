@@ -34,25 +34,16 @@ object OcrUtil {
 
     fun extractVatAmounts(ocrText: String): VatExtraction {
         fun parseNumber(s: String): Double? {
-            // Robust normalization for ISK decimals and common OCR confusions
-            val replaced = s
+            // Normalize whitespace and separators; keep only numeric normalization
+            val cleaned = s
                 .replace("\u00A0", " ") // NBSP -> space
-                .replace("—", "-")
-                .replace("–", "-")
-                .replace("−", "-")
-                .replace(Regex("(?i)[oO]"), "0")
-                .replace(Regex("(?i)[il]"), "1")
-                .replace("S", "5")
-                .replace("B", "8")
-                .replace("Z", "2")
-            val cleaned = replaced
+                .trim()
                 .lowercase()
                 .replace("kr", "")
                 .replace(" isk", "")
-                .replace("\u00A0", "")
                 .replace(" ", "")
-                .replace(".", "") // drop thousand separators
-                .replace(",", ".") // comma -> decimal
+                .replace(".", "") // drop thousand separators like 31.656 -> 31656
+                .replace(",", ".") // comma decimals -> dot
             return cleaned.toDoubleOrNull()
         }
 
@@ -181,7 +172,6 @@ object OcrUtil {
                 // Heuristic for receipts like: "VSK 24.0% 31.656 7.598"
                 // After the percent, there are usually two numbers: Nettó (bigger) and VSK upphæð (smaller).
                 // We collect ALL numeric tokens after the percent and choose the smallest as the VAT amount.
-                val afterIdx = m.range.last + 1
                 val tail = if (afterIdx in 0..line.lastIndex) line.substring(afterIdx) else ""
                 val numsAfter = numRe.findAll(tail).mapNotNull { n -> parseNumber(n.value) }.toList()
                 val chosenAmt = when {
