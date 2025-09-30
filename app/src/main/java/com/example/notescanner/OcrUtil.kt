@@ -181,7 +181,7 @@ object OcrUtil {
             if (!hadPct && (l.contains("vsk") || l.contains("virðisauk") || l.contains("vsk-upph"))) {
                 // Prefer explicit VSK-upphæð pattern
                 if (tax == null && l.contains("upph")) {
-                    numRe.findAll(line).lastOrNull()?.let { tax = parseNumber(it) }
+                    numRe.findAll(line).lastOrNull()?.value?.let { tax = parseNumber(it) }
                 } else if (tax == null) {
                     numRe.findAll(line).map { it.value }.lastOrNull()?.let { tax = parseNumber(it) }
                 }
