@@ -56,9 +56,19 @@ object OcrUtil {
             return cleaned.toDoubleOrNull()
         }
 
+        // Percent parser: keep dot/comma as decimal separator (do not strip '.')
+        fun parsePercent(s: String): Double? {
+            val cleaned = s.trim()
+                .replace("\u00A0", "")
+                .replace(" ", "")
+                .replace(",", ".")
+            return cleaned.toDoubleOrNull()
+        }
+
         val lines = ocrText.lines().map { it.trim() }.filter { it.isNotEmpty() }
     val numPattern = "([0-9]{1,3}(?:[. ][0-9]{3})*(?:,[0-9]{1,2})?|[0-9]+(?:,[0-9]{1,2})?)"
-        val pctPattern = "([0-9]{1,2}(?:,[0-9]{1,2})?)\\s*%"
+            // Allow either comma or dot decimals in percentage: 24% or 24,0% or 24.0%
+            val pctPattern = "([0-9]{1,2}(?:[.,][0-9]{1,2})?)\\s*%"
         val numRe = Regex(numPattern)
         val pctRe = Regex(pctPattern)
 
@@ -101,7 +111,7 @@ object OcrUtil {
                         tableStart = if (tableStart == -1) headerIdx else tableStart
                         tableEnd = i
                         val rateStr = (m4?:m3)!!.groupValues[1]
-                        val rate = parseNumber(rateStr)
+                        val rate = parsePercent(rateStr)
                         var vTax: Double? = null
                         var vNet: Double? = null
                         var vSum: Double? = null
@@ -165,25 +175,40 @@ object OcrUtil {
             var hadPct = false
             pctRe.findAll(line).forEach { m ->
                 hadPct = true
-                val rate = parseNumber(m.groupValues[1]) ?: return@forEach
+                val rate = parsePercent(m.groupValues[1]) ?: return@forEach
                 // Try to bind the amount appearing after the percentage on the same line.
                 val afterIdx = m.range.last + 1
-                val amtStr = if (afterIdx in 0..line.lastIndex) {
-                    numRe.find(line.substring(afterIdx))?.value
-                } else null
-                val chosen = amtStr ?: numRe.findAll(line).map { it.value }.lastOrNull()
-                chosen?.let { s ->
-                    parseNumber(s)?.let { amt -> rateMap[rate] = (rateMap[rate] ?: 0.0) + amt }
+                // Heuristic for receipts like: "VSK 24.0% 31.656 7.598"
+                // After the percent, there are usually two numbers: Nettó (bigger) and VSK upphæð (smaller).
+                // We collect ALL numeric tokens after the percent and choose the smallest as the VAT amount.
+                val afterIdx = m.range.last + 1
+                val tail = if (afterIdx in 0..line.lastIndex) line.substring(afterIdx) else ""
+                val numsAfter = numRe.findAll(tail).mapNotNull { n -> parseNumber(n.value) }.toList()
+                val chosenAmt = when {
+                    numsAfter.size >= 1 -> numsAfter.minOrNull()
+                    else -> numRe.findAll(line).mapNotNull { n -> parseNumber(n.value) }.lastOrNull()
+                }
+                if (chosenAmt != null) {
+                    rateMap[rate] = (rateMap[rate] ?: 0.0) + chosenAmt
                 }
             }
 
             // If a tax line mentions VSK but no percentage, treat the last number as the total VSK amount.
             if (!hadPct && (l.contains("vsk") || l.contains("virðisauk") || l.contains("vsk-upph"))) {
-                // Prefer explicit VSK-upphæð pattern
-                if (tax == null && l.contains("upph")) {
-                    numRe.findAll(line).lastOrNull()?.value?.let { tax = parseNumber(it) }
-                } else if (tax == null) {
-                    numRe.findAll(line).map { it.value }.lastOrNull()?.let { tax = parseNumber(it) }
+                // Prefer explicit VSK-upphæð lines and ignore numbers that belong to a percentage (e.g., 24.0%).
+                if (tax == null) {
+                    val hasPercent = line.contains('%')
+                    if (l.contains("upph")) {
+                        // Take the last numeric token and ensure it isn't immediately part of a percentage
+                        val tokens = numRe.findAll(line).toList()
+                        val last = tokens.lastOrNull()?.value
+                        val ok = last != null && !Regex("\\Q$last\\E\\s*%$").containsMatchIn(line)
+                        if (ok) tax = parseNumber(last!!)
+                    }
+                    // Fallback: if line has no percent sign, use its last number as tax
+                    if (tax == null && !hasPercent) {
+                        numRe.findAll(line).map { it.value }.lastOrNull()?.let { tax = parseNumber(it) }
+                    }
                 }
             }
         }
@@ -263,8 +288,23 @@ object OcrUtil {
 
         // VAT: explicit kr value
         val vatText = Regex("""(?i)\b(vsk-?upph[aæ]ð|vsk|vat)\b[^0-9]*([0-9][0-9\., ]*)\s*(kr|isk)?""")
+        // Prefer lines that explicitly state VSK upphæð and avoid capturing the percentage value after "VSK".
+        val vatFromLines: Double? = run {
+            val candidates = lines.filter { l -> l.lowercase().contains("vsk") && l.lowercase().contains("upph") }
+            val pick = candidates.firstOrNull()
+            if (pick != null) {
+                // Take the last numeric token on that line
+                val tokens = Regex("""(?<![A-Z0-9])([-]?[0-9]{1,3}(?:[\., ][0-9]{3})*(?:[\.,][0-9]{1,2})?|[-]?[0-9]+)""")
+                    .findAll(pick)
+                    .map { it.groupValues[1] }
+                    .toList()
+                tokens.lastOrNull()?.let { parseAmount(it) }
+            } else null
+        }
+        // Fallback to a generic VSK capture but ignore numbers that are part of a percentage (e.g., 24.0%)
+        val vatTextGeneric = Regex("""(?i)\b(vsk|vat)\b[^0-9%]*([-]?[0-9][0-9\., ]*)(?!\s*%)\s*kr?""")
             .find(normalized)?.groupValues?.getOrNull(2)
-        val vat = parseAmount(vatText)
+        val vat = vatFromLines ?: parseAmount(vatTextGeneric)
 
         // Date: support yyyy-MM-dd, dd.MM.yyyy, dd/MM/yyyy, dd-MM-yyyy
         val dateRegexes = listOf(
