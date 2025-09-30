@@ -16,6 +16,7 @@ import androidx.compose.material3.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
@@ -77,8 +78,11 @@ class MainActivity : ComponentActivity() {
             setContent {
                 // Wrap in Material3 theme to ensure required CompositionLocals exist on all devices
                 // Provide a slightly boxier shape theme across the app
+                var darkMode by rememberSaveable { mutableStateOf(false) }
+                val lightColors = lightColorScheme()
+                val darkColors = darkColorScheme()
                 MaterialTheme(
-                    colorScheme = lightColorScheme(),
+                    colorScheme = if (darkMode) darkColors else lightColors,
                     shapes = Shapes(
                         small = RoundedCornerShape(8.dp),
                         medium = RoundedCornerShape(12.dp),
@@ -86,7 +90,10 @@ class MainActivity : ComponentActivity() {
                     )
                 ) {
                     Surface(modifier = Modifier.fillMaxSize()) {
-                        NoteScannerApp()
+                        NoteScannerApp(
+                            darkTheme = darkMode,
+                            onToggleTheme = { darkMode = !darkMode }
+                        )
                     }
                 }
             }
@@ -114,7 +121,10 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun NoteScannerApp() {
+fun NoteScannerApp(
+    darkTheme: Boolean,
+    onToggleTheme: () -> Unit
+) {
     val context = LocalContext.current
     val activity = context as? Activity
     val store = remember { InvoiceStore(context) }
@@ -133,6 +143,8 @@ fun NoteScannerApp() {
 
     // Expose ImageCapture from CameraPreview so the main Scan button can trigger capture
     var imageCaptureRef by remember { mutableStateOf<ImageCapture?>(null) }
+    var cameraRef by remember { mutableStateOf<androidx.camera.core.Camera?>(null) }
+    var torchEnabled by rememberSaveable { mutableStateOf(false) }
 
     fun handleScannedImageUri(imageUri: Uri) {
         val today = getTodayIso()
@@ -252,7 +264,17 @@ fun NoteScannerApp() {
         // crashes when a non-vector XML drawable is accidentally resolved on some devices.
 
         Column(modifier = Modifier.padding(16.dp)) {
-        Text("Velkomin í nótuskanna!", modifier = Modifier.padding(bottom = 16.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Velkomin í nótuskanna!",
+                    modifier = Modifier.padding(bottom = 8.dp),
+                    style = MaterialTheme.typography.titleLarge
+                )
+                // Theme toggle
+                OutlinedButton(onClick = onToggleTheme, modifier = Modifier.height(40.dp)) {
+                    Text(if (darkTheme) "Ljóst" else "Dökkt")
+                }
+            }
 
             // Secondary navigation buttons
             // (Primary scan button moved to the bottom of the screen)
@@ -333,7 +355,9 @@ fun NoteScannerApp() {
                 }
             } else {
                 CameraPreview(
-                    onImageCaptureReady = { cap -> imageCaptureRef = cap }
+                    onImageCaptureReady = { cap -> imageCaptureRef = cap },
+                    onCameraReady = { cam -> cameraRef = cam },
+                    torchOn = torchEnabled
                 )
             }
 
@@ -410,29 +434,58 @@ fun NoteScannerApp() {
                 .height(56.dp)
         ) { Text("Skanna nótu") }
 
-        // Footer logo at bottom (replaces text). Prefer assets/logo.png if available.
+        // Flash toggle overlay when in CameraX fallback
+        if (isCameraStarted && cameraRef?.cameraInfo?.hasFlashUnit() == true) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp, bottom = 110.dp)
+                    .background(
+                        MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(if (torchEnabled) "Flash: ON" else "Flash: OFF", style = MaterialTheme.typography.labelMedium)
+                Spacer(Modifier.size(8.dp))
+                OutlinedButton(onClick = {
+                    torchEnabled = !torchEnabled
+                }, modifier = Modifier.height(36.dp)) {
+                    Text(if (torchEnabled) "Slökkva" else "Kveikja")
+                }
+            }
+        }
+
+        // Footer logo area refined (larger, adaptive to theme, reduced whitespace)
         val logoBmp: android.graphics.Bitmap? = remember {
             try { context.assets.open("logo.png").use { android.graphics.BitmapFactory.decodeStream(it) } }
             catch (_: Exception) { null }
         }
-        if (logoBmp != null) {
-            Image(
-                bitmap = logoBmp.asImageBitmap(),
-                contentDescription = "Logo",
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 8.dp)
-                    .size(28.dp)
-            )
-        } else {
-            Image(
-                painter = painterResource(id = R.drawable.ic_app_logo),
-                contentDescription = "Logo",
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 8.dp)
-                    .size(28.dp)
-            )
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .background(
+                    if (darkTheme) MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
+                    else MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
+                )
+                .padding(vertical = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            if (logoBmp != null) {
+                Image(
+                    bitmap = logoBmp.asImageBitmap(),
+                    contentDescription = "Logo",
+                    modifier = Modifier.size(width = 96.dp, height = 28.dp)
+                )
+            } else {
+                Image(
+                    painter = painterResource(id = R.drawable.ic_app_logo),
+                    contentDescription = "Logo",
+                    modifier = Modifier.size(width = 96.dp, height = 28.dp)
+                )
+            }
         }
     }
 }
@@ -862,10 +915,15 @@ fun NoteDetailScreen(record: InvoiceRecord, onBack: () -> Unit) {
 }
 
 @Composable
-fun CameraPreview(onImageCaptureReady: (ImageCapture) -> Unit) {
+fun CameraPreview(
+    onImageCaptureReady: (ImageCapture) -> Unit,
+    onCameraReady: (androidx.camera.core.Camera) -> Unit,
+    torchOn: Boolean
+) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
+    var cameraObj by remember { mutableStateOf<androidx.camera.core.Camera?>(null) }
 
     AndroidView(factory = { ctx ->
         val frameLayout = FrameLayout(ctx)
@@ -886,23 +944,27 @@ fun CameraPreview(onImageCaptureReady: (ImageCapture) -> Unit) {
             var cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
             try {
                 cameraProvider.unbindAll()
-                cameraProvider.bindToLifecycle(
+                val cam = cameraProvider.bindToLifecycle(
                     lifecycleOwner,
                     cameraSelector,
                     preview,
                     imageCapture
                 )
+                cameraObj = cam
+                onCameraReady(cam)
             } catch (exc: Exception) {
                 Log.w("CameraPreview", "Back camera binding failed, trying front", exc)
                 try {
                     cameraProvider.unbindAll()
                     cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
-                    cameraProvider.bindToLifecycle(
+                    val cam = cameraProvider.bindToLifecycle(
                         lifecycleOwner,
                         cameraSelector,
                         preview,
                         imageCapture
                     )
+                    cameraObj = cam
+                    onCameraReady(cam)
                 } catch (exc2: Exception) {
                     Log.e("CameraPreview", "Front camera binding also failed", exc2)
                 }
@@ -912,4 +974,13 @@ fun CameraPreview(onImageCaptureReady: (ImageCapture) -> Unit) {
         imageCapture?.let { onImageCaptureReady(it) }
         frameLayout
     }, modifier = Modifier.height(300.dp))
+
+    // Torch control side-effect
+    LaunchedEffect(torchOn, cameraObj) {
+        try {
+            cameraObj?.cameraControl?.enableTorch(torchOn)
+        } catch (t: Throwable) {
+            Log.w("CameraPreview", "Torch toggle failed", t)
+        }
+    }
 }
