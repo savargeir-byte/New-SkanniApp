@@ -34,17 +34,30 @@ object OcrUtil {
 
     fun extractVatAmounts(ocrText: String): VatExtraction {
         fun parseNumber(s: String): Double? {
-            val cleaned = s.lowercase()
+            // Robust normalization for ISK decimals and common OCR confusions
+            val replaced = s
+                .replace("\u00A0", " ") // NBSP -> space
+                .replace("—", "-")
+                .replace("–", "-")
+                .replace("−", "-")
+                .replace(Regex("(?i)[oO]"), "0")
+                .replace(Regex("(?i)[il]"), "1")
+                .replace("S", "5")
+                .replace("B", "8")
+                .replace("Z", "2")
+            val cleaned = replaced
+                .lowercase()
                 .replace("kr", "")
-                .replace("\u00A0", "") // non-breaking space
-                .replace("\\s+".toRegex(), "")
-                .replace(".", "")
-                .replace(",", ".")
+                .replace(" isk", "")
+                .replace("\u00A0", "")
+                .replace(" ", "")
+                .replace(".", "") // drop thousand separators
+                .replace(",", ".") // comma -> decimal
             return cleaned.toDoubleOrNull()
         }
 
         val lines = ocrText.lines().map { it.trim() }.filter { it.isNotEmpty() }
-        val numPattern = "([0-9]{1,3}(?:[. ][0-9]{3})*(?:,[0-9]{1,2})?|[0-9]+(?:,[0-9]{1,2})?)"
+    val numPattern = "([0-9]{1,3}(?:[. ][0-9]{3})*(?:,[0-9]{1,2})?|[0-9]+(?:,[0-9]{1,2})?)"
         val pctPattern = "([0-9]{1,2}(?:,[0-9]{1,2})?)\\s*%"
         val numRe = Regex(numPattern)
         val pctRe = Regex(pctPattern)
@@ -54,15 +67,16 @@ object OcrUtil {
         var total: Double? = null
         val rateMap = mutableMapOf<Double, Double>()
 
-        // 1) Try structured table capture: line like "Vsk %  Vsk  Nettó  Upphæð" followed by rows like "11% 222,97 2027,03 2250,00"
+    // 1) Try structured table capture: line like "Vsk %  Vsk  Nettó  Upphæð" followed by rows like "11% 222,97 2027,03 2250,00"
         var tableStart = -1
         var tableEnd = -1
         run {
             val headerIdx = lines.indexOfFirst { l ->
                 val ll = l.lowercase()
-                ll.contains("vsk") && (ll.contains("%") || ll.contains("prós")) &&
-                        (ll.contains("nett") || ll.contains("netto")) &&
-                        (ll.contains("upph") || ll.contains("heild") || ll.contains("samtals"))
+        // Support variations: "VSK-upphæð", "Nettó", "Upphæð", etc.
+        ll.contains("vsk") && (ll.contains("%") || ll.contains("prós")) &&
+            (ll.contains("nett") || ll.contains("netto")) &&
+            (ll.contains("upph") || ll.contains("heild") || ll.contains("samtals"))
             }
             if (headerIdx >= 0) {
                 val rowRe4 = Regex("^\\s*([0-9]{1,2}(?:,[0-9]{1,2})?)\\s*%\\s+" +
@@ -127,11 +141,24 @@ object OcrUtil {
             if (tableStart >= 0 && idx >= tableStart && idx <= tableEnd) return@forEachIndexed
             val l = line.lowercase()
 
-            if (total == null && l.contains(Regex("\\b(heild|alls|samtals|með\\s*vsk|m/\\s*vsk|total|amount)\\b"))) {
-                numRe.find(line)?.let { total = parseNumber(it.value) }
+            // Prefer explicit Icelandic labels first (these appear on both receipts)
+            if (total == null && (
+                    l.contains(Regex("\\b(til\\s*grei[ðd]slu)\\b")) ||
+                    l.contains(Regex("\\b(samtals(\\s*isk)?(\\s*me[ðd]\\s*vsk)?)\\b")) ||
+                    l.contains(Regex("\\b(heild\\s*(me[ðd])?\\s*vsk)\\b")) ||
+                    l.contains(Regex("\\b(upph[aæ][ðd])\\b")) ||
+                    l.contains(Regex("\\b(total|amount)\\b"))
+                )
+            ) {
+                // Use last number on the line (right-aligned totals)
+                numRe.findAll(line).lastOrNull()?.let { total = parseNumber(it.value) }
             }
-            if (subtotal == null && l.contains(Regex("\\b(án\\s*vsk|verð\\s*án\\s*vsk|subtotal|nettó|netto)\\b"))) {
-                numRe.find(line)?.let { subtotal = parseNumber(it.value) }
+            if (subtotal == null && (
+                    l.contains(Regex("\\b(heildar\\s*isk\\s*an\\s*vsk)\\b")) ||
+                    l.contains(Regex("\\b(\\ban\\s*vsk|ver[ðd]\\s*an\\s*vsk|nett[oó]|netto|subtotal)\\b"))
+                )
+            ) {
+                numRe.findAll(line).lastOrNull()?.let { subtotal = parseNumber(it.value) }
             }
 
             // Collect per-rate VSK amounts. Support lines both with and without explicit "vsk" text.
@@ -151,8 +178,13 @@ object OcrUtil {
             }
 
             // If a tax line mentions VSK but no percentage, treat the last number as the total VSK amount.
-            if (!hadPct && tax == null && (l.contains("vsk") || l.contains("virðisauk"))) {
-                numRe.findAll(line).map { it.value }.lastOrNull()?.let { tax = parseNumber(it) }
+            if (!hadPct && (l.contains("vsk") || l.contains("virðisauk") || l.contains("vsk-upph"))) {
+                // Prefer explicit VSK-upphæð pattern
+                if (tax == null && l.contains("upph")) {
+                    numRe.findAll(line).lastOrNull()?.let { tax = parseNumber(it) }
+                } else if (tax == null) {
+                    numRe.findAll(line).map { it.value }.lastOrNull()?.let { tax = parseNumber(it) }
+                }
             }
         }
 
@@ -203,7 +235,12 @@ object OcrUtil {
         // Parse amounts like 1.500, 1,500, 1500, with optional 'kr'
         fun parseAmount(str: String?): Double? = str?.let {
             val cleaned = it
+                .replace("\u00A0", " ")
+                .replace("—", "-")
+                .replace("–", "-")
+                .replace("−", "-")
                 .replace("kr", "", ignoreCase = true)
+                .replace("ISK", "", ignoreCase = true)
                 .replace(" ", "")
                 .replace(".", "")
                 .replace(",", ".")
@@ -211,7 +248,7 @@ object OcrUtil {
         }
 
         // Try labeled total first
-        val amountFromLabel = Regex("""(?i)\b(upphæð|heild|samtals|total|amount)\b[^0-9-]*([-]?[0-9][0-9\., ]*)\s*kr?""")
+        val amountFromLabel = Regex("""(?i)\b(til\s*grei[ðd]slu|samtals(\s*isk)?(\s*me[ðd]\s*vsk)?|heild(\s*me[ðd])?\s*vsk|upph[aæ]ð|total|amount)\b[^0-9-]*([-]?[0-9][0-9\., ]*)\s*(kr|isk)?""")
             .find(normalized)?.groupValues?.getOrNull(2)
 
         // Fallback: pick the largest plausible number in the text
@@ -225,16 +262,20 @@ object OcrUtil {
         val amount = parseAmount(amountFromLabel) ?: maxNumber
 
         // VAT: explicit kr value
-        val vatText = Regex("""(?i)\b(vsk|vat)\b[^0-9]*([0-9][0-9\., ]*)\s*kr?""")
+        val vatText = Regex("""(?i)\b(vsk-?upph[aæ]ð|vsk|vat)\b[^0-9]*([0-9][0-9\., ]*)\s*(kr|isk)?""")
             .find(normalized)?.groupValues?.getOrNull(2)
         val vat = parseAmount(vatText)
 
         // Date: support yyyy-MM-dd, dd.MM.yyyy, dd/MM/yyyy, dd-MM-yyyy
         val dateRegexes = listOf(
-            Regex("""\b([0-9]{4}-[0-9]{2}-[0-9]{2})\b"""),
-            Regex("""\b([0-9]{2}\.[0-9]{2}\.[0-9]{4})\b"""),
-            Regex("""\b([0-9]{2}/[0-9]{2}/[0-9]{4})\b"""),
-            Regex("""\b([0-9]{2}-[0-9]{2}-[0-9]{4})\b""")
+            // yyyy-MM-dd or with time
+            Regex("""\b([0-9]{4}-[0-9]{2}-[0-9]{2}(?:\s+[0-9]{2}:[0-9]{2}(?::[0-9]{2})?)?)\b"""),
+            // dd.MM.yyyy [HH:mm]
+            Regex("""\b([0-9]{2}\.[0-9]{2}\.[0-9]{4}(?:\s+[0-9]{2}:[0-9]{2}(?::[0-9]{2})?)?)\b"""),
+            // dd/MM/yyyy [HH:mm]
+            Regex("""\b([0-9]{2}/[0-9]{2}/[0-9]{4}(?:\s+[0-9]{2}:[0-9]{2}(?::[0-9]{2})?)?)\b"""),
+            // dd-MM-yyyy [HH:mm]
+            Regex("""\b([0-9]{2}-[0-9]{2}-[0-9]{4}(?:\s+[0-9]{2}:[0-9]{2}(?::[0-9]{2})?)?)\b""")
         )
         val rawDate = dateRegexes.firstNotNullOfOrNull { it.find(normalized)?.groupValues?.getOrNull(1) }
         val date = try {
@@ -267,6 +308,13 @@ object OcrUtil {
         Regex("""^(\n?)(\d{2})-(\d{2})-(\d{4})$""").matchEntire(raw.trim())?.let {
             val (_, dd, MM, yyyy) = it.groupValues
             return "$yyyy-$MM-$dd"
+        }
+
+        // 5) Any of the above with time suffix: split and normalize date part only
+        val parts = raw.trim().split(" ")
+        if (parts.isNotEmpty()) {
+            val base = normalizeDate(parts.first())
+            return base
         }
 
         // Fallback: return as-is

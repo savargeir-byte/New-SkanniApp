@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.clickable
@@ -75,7 +76,15 @@ class MainActivity : ComponentActivity() {
         try {
             setContent {
                 // Wrap in Material3 theme to ensure required CompositionLocals exist on all devices
-                MaterialTheme(colorScheme = lightColorScheme()) {
+                // Provide a slightly boxier shape theme across the app
+                MaterialTheme(
+                    colorScheme = lightColorScheme(),
+                    shapes = Shapes(
+                        small = RoundedCornerShape(8.dp),
+                        medium = RoundedCornerShape(12.dp),
+                        large = RoundedCornerShape(16.dp)
+                    )
+                ) {
                     Surface(modifier = Modifier.fillMaxSize()) {
                         NoteScannerApp()
                     }
@@ -252,11 +261,19 @@ fun NoteScannerApp() {
             Row(modifier = Modifier.fillMaxWidth()) {
                 OutlinedButton(onClick = {
                     showOverview = true; showList = false; isCameraStarted = false
-                }, modifier = Modifier.weight(1f)) { Text("Skoða yfirlit") }
+                }, modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) { Text("Skoða yfirlit") }
                 Spacer(modifier = Modifier.size(8.dp))
                 OutlinedButton(onClick = {
                     showList = true; showOverview = false; isCameraStarted = false
-                }, modifier = Modifier.weight(1f)) { Text("Skoða nótur") }
+                }, modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) { Text("Skoða nótur") }
             }
 
             if (selectedRecord != null) {
@@ -529,76 +546,122 @@ fun OverviewScreen(
     }
 
     Column(modifier = Modifier.padding(top = 16.dp)) {
-        // Back + Controls row
-        Row(modifier = Modifier.fillMaxWidth()) {
-            OutlinedButton(onClick = onBack, modifier = Modifier.weight(0.7f)) { Text("Til baka") }
-            Spacer(Modifier.size(8.dp))
-            // Month dropdown
-            Column(modifier = Modifier.weight(1f)) {
-                OutlinedButton(onClick = { monthFilterExpanded = true }, modifier = Modifier.fillMaxWidth()) {
-                    Text(selectedMonth ?: "Mánuður: Allir")
-                }
-                DropdownMenu(expanded = monthFilterExpanded, onDismissRequest = { monthFilterExpanded = false }) {
-                    DropdownMenuItem(text = { Text("Allir mánuðir") }, onClick = {
-                        selectedMonth = null; monthFilterExpanded = false
-                    })
-                    months.forEach { m ->
-                        DropdownMenuItem(text = { Text(m) }, onClick = {
-                            selectedMonth = m; monthFilterExpanded = false
-                        })
+        // Controls panel wrapped in a Card for a cleaner, boxy look
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                // Back + Controls row
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(
+                        onClick = onBack,
+                        modifier = Modifier
+                            .weight(0.7f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) { Text("Til baka") }
+                    Spacer(Modifier.size(8.dp))
+                    // Month dropdown
+                    Column(modifier = Modifier.weight(1f)) {
+                        OutlinedButton(
+                            onClick = { monthFilterExpanded = true },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(selectedMonth ?: "Mánuður: Allir")
+                        }
+                        DropdownMenu(expanded = monthFilterExpanded, onDismissRequest = { monthFilterExpanded = false }) {
+                            DropdownMenuItem(text = { Text("Allir mánuðir") }, onClick = {
+                                selectedMonth = null; monthFilterExpanded = false
+                            })
+                            months.forEach { m ->
+                                DropdownMenuItem(text = { Text(m) }, onClick = {
+                                    selectedMonth = m; monthFilterExpanded = false
+                                })
+                            }
+                        }
                     }
+
+                    Spacer(Modifier.size(8.dp))
+
+                    // Vendor filter
+                    OutlinedTextField(
+                        value = vendorQuery,
+                        onValueChange = { vendorQuery = it },
+                        label = { Text("Leita seljanda") },
+                        modifier = Modifier
+                            .weight(1.2f)
+                            .height(56.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+
+                Spacer(Modifier.size(8.dp))
+
+                // Sort buttons
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(
+                        onClick = {
+                            sortBy = when (sortBy) {
+                                SortBy.VENDOR_ASC -> SortBy.VENDOR_DESC
+                                SortBy.VENDOR_DESC -> SortBy.VENDOR_ASC
+                                else -> SortBy.VENDOR_ASC
+                            }
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) { Text("Raða: Seljandi") }
+
+                    Spacer(Modifier.size(8.dp))
+
+                    OutlinedButton(
+                        onClick = {
+                            sortBy = when (sortBy) {
+                                SortBy.AMOUNT_ASC -> SortBy.AMOUNT_DESC
+                                SortBy.AMOUNT_DESC -> SortBy.AMOUNT_ASC
+                                else -> SortBy.AMOUNT_DESC
+                            }
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) { Text("Raða: Upphæð") }
+
+                    Spacer(Modifier.size(8.dp))
+
+                    OutlinedButton(
+                        onClick = {
+                            sortBy = when (sortBy) {
+                                SortBy.DATE_ASC -> SortBy.DATE_DESC
+                                SortBy.DATE_DESC -> SortBy.DATE_ASC
+                                else -> SortBy.DATE_DESC
+                            }
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) { Text("Raða: Dagsetning") }
+                }
+
+                Spacer(Modifier.size(8.dp))
+
+                // Export CSV
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    ExportCsvButton(
+                        sorted,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp)
+                    )
                 }
             }
-
-            Spacer(Modifier.size(8.dp))
-
-            // Vendor filter
-            OutlinedTextField(
-                value = vendorQuery,
-                onValueChange = { vendorQuery = it },
-                label = { Text("Leita seljanda") },
-                modifier = Modifier.weight(1.2f)
-            )
-        }
-
-        Spacer(Modifier.size(8.dp))
-
-        // Sort buttons
-        Row(modifier = Modifier.fillMaxWidth()) {
-            OutlinedButton(onClick = {
-                sortBy = when (sortBy) {
-                    SortBy.VENDOR_ASC -> SortBy.VENDOR_DESC
-                    SortBy.VENDOR_DESC -> SortBy.VENDOR_ASC
-                    else -> SortBy.VENDOR_ASC
-                }
-            }, modifier = Modifier.weight(1f)) { Text("Raða: Seljandi") }
-
-            Spacer(Modifier.size(8.dp))
-
-            OutlinedButton(onClick = {
-                sortBy = when (sortBy) {
-                    SortBy.AMOUNT_ASC -> SortBy.AMOUNT_DESC
-                    SortBy.AMOUNT_DESC -> SortBy.AMOUNT_ASC
-                    else -> SortBy.AMOUNT_DESC
-                }
-            }, modifier = Modifier.weight(1f)) { Text("Raða: Upphæð") }
-
-            Spacer(Modifier.size(8.dp))
-
-            OutlinedButton(onClick = {
-                sortBy = when (sortBy) {
-                    SortBy.DATE_ASC -> SortBy.DATE_DESC
-                    SortBy.DATE_DESC -> SortBy.DATE_ASC
-                    else -> SortBy.DATE_DESC
-                }
-            }, modifier = Modifier.weight(1f)) { Text("Raða: Dagsetning") }
-        }
-
-        Spacer(Modifier.size(8.dp))
-
-        // Export CSV
-        Row(modifier = Modifier.fillMaxWidth()) {
-            ExportCsvButton(sorted, modifier = Modifier.weight(1f))
         }
 
         // Table header
@@ -665,7 +728,11 @@ private fun exportCsv(list: List<InvoiceRecord>, context: android.content.Contex
 @Composable
 private fun ExportCsvButton(list: List<InvoiceRecord>, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    Button(onClick = { exportCsv(list, context) }, modifier = modifier) { Text("Flytja út CSV") }
+    Button(
+        onClick = { exportCsv(list, context) },
+        modifier = modifier,
+        shape = RoundedCornerShape(14.dp)
+    ) { Text("Flytja út CSV") }
 }
 
 @Composable
