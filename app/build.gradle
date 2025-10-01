@@ -21,15 +21,15 @@ if (keystorePropertiesFile.exists()) {
 android {
 	// Use a stable reverse-DNS namespace and applicationId for Play Store
 	namespace 'io.github.saeargeir.skanniapp'
-	compileSdk 34
+	compileSdk 35
 
 	defaultConfig {
 		applicationId 'io.github.saeargeir.skanniapp'
 		minSdk 24
-		targetSdk 34
-		// Bump version for Play upload
-		versionCode 7
-		versionName '1.0.7'
+		targetSdk 35
+		// Bump version for Play upload (must be monotonically increasing)
+		versionCode 21
+		versionName '1.0.21'
 		testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
 	}
 
@@ -50,6 +50,11 @@ android {
 			// later consider enabling and adding keep rules.
 			minifyEnabled false
 			proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+			// Generate native debug symbols zip for Play Console (helps crash symbolication)
+			ndk {
+				// Options: 'NONE', 'SYMBOL_TABLE', 'FULL'. SYMBOL_TABLE balances size and usefulness.
+				debugSymbolLevel 'SYMBOL_TABLE'
+			}
 			if (hasSigning) {
 				signingConfig = signingConfigs.release
 			} else {

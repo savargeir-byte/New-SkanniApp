@@ -25,7 +25,7 @@ jobs:
       - name: Install Android packages
         run: |
           yes | sdkmanager --licenses
-          sdkmanager "platform-tools" "platforms;android-34" "build-tools;35.0.0"
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Setup Gradle cache
         uses: gradle/actions/setup-gradle@v4
