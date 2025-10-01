@@ -13,9 +13,10 @@ pluginManagement {
     // Ensure plugins resolve even if Gradle Plugin Portal is flaky or blocked
     resolutionStrategy {
         eachPlugin {
-            when (requested.id.id) {
-                "com.android.application" -> useModule("com.android.tools.build:gradle:8.5.2")
-                "org.jetbrains.kotlin.android" -> useVersion("1.9.24")
+            val pid = requested.id.id
+            when {
+                pid == "com.android.application" -> useModule("com.android.tools.build:gradle:8.5.2")
+                pid.startsWith("org.jetbrains.kotlin") -> useModule("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.24")
             }
         }
     }

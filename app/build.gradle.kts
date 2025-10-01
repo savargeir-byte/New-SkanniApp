@@ -80,6 +80,13 @@ android {
 
 	// Workaround Windows file-lock issues by using a fresh build dir (bypass R.jar lock)
 	setBuildDir("build_android3")
+
+	// Package project image folder as assets so we can load logo.png at runtime
+	sourceSets {
+		getByName("main") {
+			assets.srcDirs(assets.srcDirs + listOf("image"))
+		}
+	}
 }
 
 dependencies {

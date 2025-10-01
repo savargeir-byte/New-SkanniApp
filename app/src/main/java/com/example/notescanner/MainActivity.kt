@@ -321,7 +321,7 @@ fun NoteScannerApp(
                             menuExpanded = false
                             onToggleTheme()
                         })
-                    })
+                    }
                     Text(
                         "Velkomin í nótuskanna!",
                         modifier = Modifier.padding(bottom = 8.dp),

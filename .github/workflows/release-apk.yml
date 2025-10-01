@@ -35,7 +35,15 @@ jobs:
 
       - name: Build release APK and AAB (unsigned)
         run: |
-          ./gradlew --no-daemon clean :app:assembleRelease :app:bundleRelease --stacktrace --info
+          set -o pipefail
+          ./gradlew --no-daemon clean :app:assembleRelease :app:bundleRelease --stacktrace --info --debug 2>&1 | tee gradle-build-release-unsigned.log
+
+      - name: Upload Gradle logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-logs-release-unsigned
+          path: gradle-build-release-unsigned.log
 
       - name: Verify APK/AAB exist
         run: |

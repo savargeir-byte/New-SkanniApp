@@ -35,7 +35,16 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build debug APK
-        run: ./gradlew :app:assembleDebug --stacktrace --info --no-daemon
+        run: |
+          set -o pipefail
+          ./gradlew :app:assembleDebug --stacktrace --info --debug --no-daemon 2>&1 | tee gradle-build-debug.log
+
+      - name: Upload Gradle logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-logs-debug
+          path: gradle-build-debug.log
 
       - name: Upload artifact (debug APK)
         uses: actions/upload-artifact@v4
