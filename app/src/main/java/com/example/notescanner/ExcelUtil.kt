@@ -8,7 +8,8 @@ object ExcelUtil {
         if (!excelFile.exists()) {
             excelFile.parentFile?.mkdirs()
             FileWriter(excelFile, true).use { w ->
-                w.write("Skrá, Dagsetning, Mánuður, Fyrirtæki, Upphæð, VSK\n")
+                // CSV header (Excel-compatible). Order: InvoiceNo, Vendor, Date, Month, Net, VAT, Total, File
+                w.write("ReikningsNr,Fyrirtæki,Dagsetning,Mánuður,Nettó,VSK,Heild,Skrá\n")
             }
         }
     }
@@ -17,7 +18,12 @@ object ExcelUtil {
         try {
             ensureHeader(excelFile)
             FileWriter(excelFile, true).use { w ->
-                w.write(rowData.joinToString(",") + "\n")
+                fun esc(s: String): String {
+                    val needsQuotes = s.contains(',') || s.contains('"') || s.contains('\n')
+                    val body = if (s.contains('"')) s.replace("\"", "\"\"") else s
+                    return if (needsQuotes) "\"$body\"" else body
+                }
+                w.write(rowData.joinToString(",") { esc(it) } + "\n")
             }
         } catch (e: Exception) {
             e.printStackTrace()

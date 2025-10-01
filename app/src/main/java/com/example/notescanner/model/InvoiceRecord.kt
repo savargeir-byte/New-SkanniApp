@@ -7,5 +7,6 @@ data class InvoiceRecord(
     val vendor: String,
     val amount: Double,
     val vat: Double,         // VAT amount (not percent)
-    val imagePath: String    // absolute path in internal storage
+    val imagePath: String,   // absolute path in internal storage
+    val invoiceNumber: String? = null
 )

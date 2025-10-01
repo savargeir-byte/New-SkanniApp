@@ -162,14 +162,26 @@ fun NoteScannerApp(
             OcrUtil.recognizeTextFromImage(context, destFile) { text ->
                 ocrResult = text
                 val parsed = OcrUtil.parse(text)
-                val vendor = parsed.vendor ?: text.lines().firstOrNull()?.take(64) ?: "Óþekkt"
+                    val vendor = parsed.vendor ?: text.lines().firstOrNull()?.take(64) ?: "Óþekkt"
+                    val invNo = parsed.invoiceNumber
                 val vatExtract = OcrUtil.extractVatAmounts(text)
                 val amount = vatExtract.total ?: parsed.amount ?: 0.0
                 val vat = vatExtract.tax ?: parsed.vat ?: 0.0
+                val net = vatExtract.subtotal ?: (amount - vat)
 
                 val excelFile = File(context.filesDir, "reikningar.xlsx")
                 ExcelUtil.appendToExcel(
-                    listOf(destFile.name, today, monthKey, vendor, String.format("%.2f", amount), String.format("%.2f", vat)),
+                    // Order: ReikningsNr, Fyrirtæki, Dagsetning, Mánuður, Nettó, VSK, Heild, Skrá
+                    listOf(
+                        invNo ?: "",
+                        vendor,
+                        today,
+                        monthKey,
+                        String.format("%.2f", net),
+                        String.format("%.2f", vat),
+                        String.format("%.2f", amount),
+                        destFile.name
+                    ),
                     excelFile
                 )
                 lastExcelPath = excelFile.absolutePath
@@ -181,7 +193,8 @@ fun NoteScannerApp(
                     vendor = vendor,
                     amount = amount,
                     vat = vat,
-                    imagePath = destFile.absolutePath
+                    imagePath = destFile.absolutePath,
+                    invoiceNumber = invNo
                 )
                 store.add(record)
                 refreshRecords()
@@ -798,9 +811,26 @@ private enum class SortBy { VENDOR_ASC, VENDOR_DESC, AMOUNT_ASC, AMOUNT_DESC, DA
 // CSV export helper
 private fun exportCsv(list: List<InvoiceRecord>, context: android.content.Context) {
     val csv = buildString {
-        appendLine("id,date,month,vendor,amount,vat,imagePath")
+        // Match Excel columns: ReikningsNr,Fyrirtæki,Dagsetning,Mánuður,Nettó,VSK,Heild,Skrá
+        appendLine("ReikningsNr,Fyrirtæki,Dagsetning,Mánuður,Nettó,VSK,Heild,Skrá")
+        fun esc(s: String): String {
+            val needs = s.contains(',') || s.contains('"') || s.contains('\n')
+            val body = if (s.contains('"')) s.replace("\"", "\"\"") else s
+            return if (needs) "\"$body\"" else body
+        }
         list.forEach { r ->
-            appendLine("${r.id},${r.date},${r.monthKey},\"${r.vendor.replace("\"", "\"\"")}\",${String.format("%.2f", r.amount)},${String.format("%.2f", r.vat)},${r.imagePath}")
+            val net = r.amount - r.vat
+            val row = listOf(
+                r.invoiceNumber ?: "",
+                r.vendor,
+                r.date,
+                r.monthKey,
+                String.format("%.2f", net),
+                String.format("%.2f", r.vat),
+                String.format("%.2f", r.amount),
+                r.imagePath
+            ).joinToString(",") { esc(it) }
+            appendLine(row)
         }
     }
     val file = File(context.filesDir, "notur.csv")
@@ -833,6 +863,7 @@ fun NoteDetailScreen(record: InvoiceRecord, onBack: () -> Unit) {
     var date by rememberSaveable(record.id) { mutableStateOf(record.date) }
     var amount by rememberSaveable(record.id) { mutableStateOf(record.amount.toString()) }
     var vat by rememberSaveable(record.id) { mutableStateOf(record.vat.toString()) }
+    var invoiceNumber by rememberSaveable(record.id) { mutableStateOf(record.invoiceNumber ?: "") }
     val bmp = remember(record.imagePath) { loadThumbnail(record.imagePath, 2048) }
 
     // Compute VAT breakdown from the image on demand to show 11%/24% sundurliðun
@@ -892,8 +923,10 @@ fun NoteDetailScreen(record: InvoiceRecord, onBack: () -> Unit) {
         }
 
         Spacer(Modifier.size(12.dp))
-        OutlinedTextField(value = vendor, onValueChange = { vendor = it }, label = { Text("Seljandi") }, modifier = Modifier.fillMaxWidth())
+    OutlinedTextField(value = vendor, onValueChange = { vendor = it }, label = { Text("Seljandi") }, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.size(8.dp))
+    OutlinedTextField(value = invoiceNumber, onValueChange = { invoiceNumber = it }, label = { Text("Reikningsnr./Nótunúmer") }, modifier = Modifier.fillMaxWidth())
+    Spacer(Modifier.size(8.dp))
         OutlinedTextField(value = date, onValueChange = { date = it }, label = { Text("Dagsetning (yyyy-MM-dd)") }, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.size(8.dp))
         OutlinedTextField(value = amount, onValueChange = { amount = it }, label = { Text("Upphæð") }, modifier = Modifier.fillMaxWidth())
@@ -936,7 +969,8 @@ fun NoteDetailScreen(record: InvoiceRecord, onBack: () -> Unit) {
                 vendor = vendor,
                 date = date,
                 amount = amount.toDoubleOrNull() ?: record.amount,
-                vat = vat.toDoubleOrNull() ?: record.vat
+                vat = vat.toDoubleOrNull() ?: record.vat,
+                invoiceNumber = invoiceNumber.ifBlank { null }
             )
             store.update(updated)
             onBack()

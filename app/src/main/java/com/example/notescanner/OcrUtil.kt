@@ -222,7 +222,8 @@ object OcrUtil {
         val vendor: String?,
         val amount: Double?,
         val vat: Double?,
-        val date: String?
+        val date: String?,
+        val invoiceNumber: String?
     )
 
     fun parse(text: String): ParsedInvoice {
@@ -244,6 +245,17 @@ object OcrUtil {
                 skipWords.none { sw -> l.contains(sw) } && line.length in 2..64
             }
         }
+
+        // Invoice number: prefer explicit labels like "Reikningur nr." then fall back to a standalone numeric token (6-10 digits) near the end
+        val invLabelRegex = Regex("""(?i)\b(reikningur\s*nr\.?|reiknings?númer|nót[uú]?númer|kvittun\s*nr\.?|invoice\s*no?\.?|bill\s*no\.?)\b[^A-Za-z0-9]{0,10}([A-Z0-9-]{3,})""")
+        val invoiceFromLabel = invLabelRegex.find(normalized)?.groupValues?.getOrNull(2)
+        val invoiceFallback = if (invoiceFromLabel == null) {
+            // scan from bottom and pick the last pure digit token length 6..10 without separators
+            val tailLines = lines.asReversed()
+            val tokenRe = Regex("""\b([0-9]{6,10})\b""")
+            tailLines.firstNotNullOfOrNull { ln -> tokenRe.findAll(ln).lastOrNull()?.groupValues?.getOrNull(1) }
+        } else null
+        val invoiceNumber = (invoiceFromLabel ?: invoiceFallback)?.trim()
 
         // Parse amounts like 1.500, 1,500, 1500, with optional 'kr'
         fun parseAmount(str: String?): Double? = str?.let {
@@ -310,7 +322,7 @@ object OcrUtil {
             if (rawDate == null) null else normalizeDate(rawDate)
         } catch (_: Exception) { null }
 
-        return ParsedInvoice(vendor, amount, vat, date)
+    return ParsedInvoice(vendor, amount, vat, date, invoiceNumber)
     }
 
     private fun normalizeDate(raw: String): String {

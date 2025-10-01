@@ -55,6 +55,7 @@ class InvoiceStore(private val context: Context) {
         put("amount", r.amount)
         put("vat", r.vat)
         put("imagePath", r.imagePath)
+        if (r.invoiceNumber != null) put("invoiceNumber", r.invoiceNumber)
     }
 
     private fun fromJson(o: JSONObject): InvoiceRecord = InvoiceRecord(
@@ -64,6 +65,7 @@ class InvoiceStore(private val context: Context) {
         vendor = o.getString("vendor"),
         amount = o.getDouble("amount"),
         vat = o.getDouble("vat"),
-        imagePath = o.getString("imagePath")
+        imagePath = o.getString("imagePath"),
+        invoiceNumber = if (o.has("invoiceNumber")) o.optString("invoiceNumber", null) else null
     )
 }
