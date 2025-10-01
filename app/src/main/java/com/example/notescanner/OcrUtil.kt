@@ -47,8 +47,6 @@ object OcrUtil {
             return cleaned.toDoubleOrNull()
         }
 
-        fun parsePercent(s: String): Double? = parseNumber(s)
-
         // Percent parser: keep dot/comma as decimal separator (do not strip '.')
         fun parsePercent(s: String): Double? {
             val cleaned = s.trim()
@@ -57,15 +55,12 @@ object OcrUtil {
                 .replace(",", ".")
             return cleaned.toDoubleOrNull()
         }
-
         val lines = ocrText.lines().map { it.trim() }.filter { it.isNotEmpty() }
-    val numPattern = "([0-9]{1,3}(?:[. ][0-9]{3})*(?:,[0-9]{1,2})?|[0-9]+(?:,[0-9]{1,2})?)"
-            // Allow either comma or dot decimals in percentage: 24% or 24,0% or 24.0%
-            val pctPattern = "([0-9]{1,2}(?:[.,][0-9]{1,2})?)\\s*%"
+        val numPattern = "([0-9]{1,3}(?:[. ][0-9]{3})*(?:,[0-9]{1,2})?|[0-9]+(?:,[0-9]{1,2})?)"
+        // Accept percent with comma or dot decimals (e.g., 24.0% or 24,0%)
+        val pctPattern = "([0-9]{1,2}(?:[.,][0-9]{1,2})?)\\s*%"
         val numRe = Regex(numPattern)
-            val numPattern = "([0-9]{1,3}(?:[. ][0-9]{3})*(?:,[0-9]{1,2})?|[0-9]+(?:,[0-9]{1,2})?)"
-            // Accept percent with comma or dot decimals (e.g., 24.0% or 24,0%)
-            val pctPattern = "([0-9]{1,2}(?:[.,][0-9]{1,2})?)\\s*%"
+        val pctRe = Regex(pctPattern)
         var subtotal: Double? = null
         var tax: Double? = null
         var total: Double? = null
