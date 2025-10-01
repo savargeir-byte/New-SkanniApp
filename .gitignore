@@ -15,3 +15,5 @@
 local.properties
 keystore.properties
 notescanner-release.jks
+upload-keystore.jks
+upload-keystore.jks.b64
