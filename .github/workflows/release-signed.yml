@@ -28,6 +28,7 @@ jobs:
 
       - name: Install Android SDK packages
         run: |
+          yes | sdkmanager --licenses
           sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;35.0.0"
 
       - name: Check signing secrets
@@ -36,7 +37,7 @@ jobs:
             echo "SIGNING_READY=true" >> $GITHUB_ENV
           else
             echo "SIGNING_READY=false" >> $GITHUB_ENV
-            echo "Signing secrets not provided. Skipping release build." >> $GITHUB_STEP_SUMMARY
+            echo "Signing secrets not provided. Skipping release build.\nRequired: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Restore keystore from secret
@@ -62,6 +63,14 @@ jobs:
         if: env.SIGNING_READY == 'true'
         run: ./gradlew --no-daemon :app:bundleRelease --stacktrace --info
 
+      - name: List release outputs (diagnostics)
+        if: env.SIGNING_READY == 'true'
+        run: |
+          echo "Listing app/build_android3/outputs/apk/release" && ls -la app/build_android3/outputs/apk/release || true
+          echo "Listing app/build/outputs/apk/release" && ls -la app/build/outputs/apk/release || true
+          echo "Listing app/build_android3/outputs/bundle/release" && ls -la app/build_android3/outputs/bundle/release || true
+          echo "Listing app/build/outputs/bundle/release" && ls -la app/build/outputs/bundle/release || true
+
       - name: Upload artifact (release APK/AAB)
         if: env.SIGNING_READY == 'true'
         uses: actions/upload-artifact@v4
@@ -70,6 +79,8 @@ jobs:
           path: |
             app/build_android3/outputs/apk/release/app-release.apk
             app/build_android3/outputs/bundle/release/app-release.aab
+            app/build/outputs/apk/release/app-release.apk
+            app/build/outputs/bundle/release/app-release.aab
 
       # Fallback path: if signing secrets are missing, still produce a usable debug APK
       - name: Make Gradle executable (fallback)
@@ -94,6 +105,9 @@ jobs:
           files: |
             app/build_android3/outputs/apk/release/app-release.apk
             app/build_android3/outputs/bundle/release/app-release.aab
+            app/build/outputs/apk/release/app-release.apk
+            app/build/outputs/bundle/release/app-release.aab
+          fail_on_unmatched_files: false
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

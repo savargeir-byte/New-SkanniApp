@@ -1,9 +1,6 @@
-name: Build and Release Debug APK
+name: Build and Release Debug APK (manual only)
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       tag_name:
@@ -48,20 +45,17 @@ jobs:
             app/build_android3/outputs/apk/debug/app-debug.apk
             app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Decide tag name
+      - name: Decide tag name (manual runs only)
+        if: github.event_name == 'workflow_dispatch'
         id: tag
         run: |
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          else
-            # Use provided input or auto-generate one for manual runs
-            INPUT_TAG="${{ github.event.inputs.tag_name }}"
-            if [[ -z "$INPUT_TAG" ]]; then
-              INPUT_TAG="v${GITHUB_RUN_NUMBER}-debug"
-            fi
-            echo "tag_name=$INPUT_TAG" >> $GITHUB_OUTPUT
+          INPUT_TAG="${{ github.event.inputs.tag_name }}"
+          if [[ -z "$INPUT_TAG" ]]; then
+            INPUT_TAG="v${GITHUB_RUN_NUMBER}-debug"
           fi
-      - name: Create GitHub Release (manual or tag)
+          echo "tag_name=$INPUT_TAG" >> $GITHUB_OUTPUT
+      - name: Create GitHub Release (manual only)
+        if: github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag_name }}
