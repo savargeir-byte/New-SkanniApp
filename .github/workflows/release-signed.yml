@@ -23,6 +23,12 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      # Avoid failing the build when GitHub cache backend has incidents
+      - name: Set up Gradle (cache read-only)
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 

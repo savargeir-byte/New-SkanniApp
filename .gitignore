@@ -18,3 +18,7 @@ notescanner-release.jks
 upload-keystore.jks
 upload-keystore.jks.b64
 app-release.aab
+
+# Local secrets and helper artifacts (do not commit)
+.secrets/
+scripts/*.local.*
