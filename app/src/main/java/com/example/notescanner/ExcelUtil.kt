@@ -1,4 +1,4 @@
-package com.example.notescanner
+package io.github.saeargeir.skanniapp
 
 import java.io.File
 import java.io.FileWriter

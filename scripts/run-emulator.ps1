@@ -99,7 +99,7 @@ Write-Header "Install APK: $($apk.FullName)"
 
 # Uninstall any existing install to avoid stale dex/class issues
 Write-Header 'Uninstall old package (if present)'
-& $adb uninstall 'com.example.notescanner' 2>$null | Out-Null
+& $adb uninstall 'io.github.saeargeir.skanniapp' 2>$null | Out-Null
 # Try install with -g (grant all permissions). Fallback without if unsupported
 Write-Header 'Install APK: grant permissions (-g)'
 & $adb install -r -d -g $apk.FullName
@@ -111,8 +111,8 @@ if ($LASTEXITCODE -ne 0) {
 
 # Launch app
 Write-Header 'Launch app'
-$pkg = 'com.example.notescanner'
-$act = 'com.example.notescanner.MainActivity'
+$pkg = 'io.github.saeargeir.skanniapp'
+$act = 'io.github.saeargeir.skanniapp.MainActivity'
 # Verify package installed
 $pkgInstalled = (& $adb shell pm list packages 2>$null | Select-String -SimpleMatch $pkg)
 if (-not $pkgInstalled) { throw "Package $pkg not installed; install step likely failed." }

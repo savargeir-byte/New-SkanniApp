@@ -1,4 +1,4 @@
-package com.example.notescanner.model
+package io.github.saeargeir.skanniapp.model
 
 data class InvoiceRecord(
     val id: Long,

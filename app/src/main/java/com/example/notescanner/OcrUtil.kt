@@ -1,4 +1,4 @@
-package com.example.notescanner
+package io.github.saeargeir.skanniapp
 
 import android.content.Context
 import android.net.Uri

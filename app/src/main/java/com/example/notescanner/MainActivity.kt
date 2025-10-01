@@ -1,4 +1,4 @@
-package com.example.notescanner
+package io.github.saeargeir.skanniapp
 
 import android.os.Bundle
 import android.Manifest
@@ -56,8 +56,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.sp
 import android.graphics.BitmapFactory
-import com.example.notescanner.data.InvoiceStore
-import com.example.notescanner.model.InvoiceRecord
+import io.github.saeargeir.skanniapp.data.InvoiceStore
+import io.github.saeargeir.skanniapp.model.InvoiceRecord
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.text.SimpleDateFormat

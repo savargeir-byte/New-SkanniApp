@@ -1,7 +1,7 @@
-package com.example.notescanner.data
+package io.github.saeargeir.skanniapp.data
 
 import android.content.Context
-import com.example.notescanner.model.InvoiceRecord
+import io.github.saeargeir.skanniapp.model.InvoiceRecord
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File

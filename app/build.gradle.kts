@@ -20,16 +20,18 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-	namespace = "com.example.notescanner"
+	// Use a unique, publishable namespace (avoid com.example)
+	namespace = "io.github.saeargeir.skanniapp"
 	compileSdk = 34
 	buildToolsVersion = "35.0.0"
 
 	defaultConfig {
-		applicationId = "com.example.notescanner"
+		// This is the Play Store package name
+		applicationId = "io.github.saeargeir.skanniapp"
 		minSdk = 24
 		targetSdk = 34
-		versionCode = 3
-		versionName = "1.0.2"
+		versionCode = 4
+		versionName = "1.0.3"
 		testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 	}
 
