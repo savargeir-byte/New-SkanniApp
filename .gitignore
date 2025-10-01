@@ -22,3 +22,9 @@ app-release.aab
 # Local secrets and helper artifacts (do not commit)
 .secrets/
 scripts/*.local.*
+
+# Android app build outputs (custom build dirs)
+app/build_android*/
+app/build_android3/
+app/build_android4/
+app/outputs/
