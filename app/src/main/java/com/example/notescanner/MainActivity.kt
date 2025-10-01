@@ -47,12 +47,14 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.sp
 import android.graphics.BitmapFactory
 import com.example.notescanner.data.InvoiceStore
 import com.example.notescanner.model.InvoiceRecord
@@ -619,7 +621,7 @@ fun OverviewScreen(
                             .weight(0.7f)
                             .height(48.dp),
                         shape = RoundedCornerShape(12.dp)
-                    ) { Text("Til baka") }
+                    ) { Text("Til baka", maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 14.sp) }
                     Spacer(Modifier.size(8.dp))
                     // Month dropdown
                     Column(modifier = Modifier.weight(1f)) {
@@ -629,9 +631,7 @@ fun OverviewScreen(
                                 .fillMaxWidth()
                                 .height(48.dp),
                             shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text(selectedMonth ?: "Mánuður: Allir")
-                        }
+                        ) { Text(selectedMonth ?: "Mánuður: Allir", maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 14.sp) }
                         DropdownMenu(expanded = monthFilterExpanded, onDismissRequest = { monthFilterExpanded = false }) {
                             DropdownMenuItem(text = { Text("Allir mánuðir") }, onClick = {
                                 selectedMonth = null; monthFilterExpanded = false
@@ -650,10 +650,11 @@ fun OverviewScreen(
                     OutlinedTextField(
                         value = vendorQuery,
                         onValueChange = { vendorQuery = it },
-                        label = { Text("Leita seljanda") },
+                        label = { Text("Leita seljanda", fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                         modifier = Modifier
                             .weight(1.2f)
                             .height(56.dp),
+                        textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
                         shape = RoundedCornerShape(12.dp)
                     )
                 }
@@ -674,7 +675,7 @@ fun OverviewScreen(
                             .weight(1f)
                             .height(48.dp),
                         shape = RoundedCornerShape(12.dp)
-                    ) { Text("Raða: Seljandi") }
+                    ) { Text("Raða: Seljandi", maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 14.sp) }
 
                     Spacer(Modifier.size(8.dp))
 
@@ -690,7 +691,7 @@ fun OverviewScreen(
                             .weight(1f)
                             .height(48.dp),
                         shape = RoundedCornerShape(12.dp)
-                    ) { Text("Raða: Upphæð") }
+                    ) { Text("Raða: Upphæð", maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 14.sp) }
 
                     Spacer(Modifier.size(8.dp))
 
@@ -706,7 +707,7 @@ fun OverviewScreen(
                             .weight(1f)
                             .height(48.dp),
                         shape = RoundedCornerShape(12.dp)
-                    ) { Text("Raða: Dagsetning") }
+                    ) { Text("Raða: Dagsetning", maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 14.sp) }
                 }
 
                 Spacer(Modifier.size(8.dp))
@@ -730,10 +731,40 @@ fun OverviewScreen(
                 .fillMaxWidth()
                 .padding(vertical = 6.dp)
         ) {
-            Text("Dagsetning", modifier = Modifier.weight(1.1f))
-            Text("Seljandi", modifier = Modifier.weight(2.0f))
-            Text("Upphæð", modifier = Modifier.weight(1f), textAlign = TextAlign.End)
-            Text("VSK", modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+            Text(
+                "Dagsetning",
+                modifier = Modifier.weight(1.1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                "Seljandi",
+                modifier = Modifier.weight(2.0f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                "Upphæð",
+                modifier = Modifier.weight(1f),
+                textAlign = TextAlign.End,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                "VSK",
+                modifier = Modifier.weight(1f),
+                textAlign = TextAlign.End,
+                maxLines = 1,
+                overflow = TextOverflow.Clip,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold
+            )
         }
     HorizontalDivider()
 
