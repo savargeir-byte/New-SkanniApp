@@ -56,6 +56,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.sp
 import android.graphics.BitmapFactory
+import android.content.ContentResolver
+import android.provider.DocumentsContract
+import androidx.documentfile.provider.DocumentFile
 import io.github.saeargeir.skanniapp.data.InvoiceStore
 import io.github.saeargeir.skanniapp.model.InvoiceRecord
 import java.util.concurrent.ExecutorService
@@ -142,6 +145,11 @@ fun NoteScannerApp(
     var selectedRecord by remember { mutableStateOf<InvoiceRecord?>(null) }
     var records by remember { mutableStateOf(store.loadAll()) }
     var menuExpanded by remember { mutableStateOf(false) }
+    // Persisted cloud folder (Drive/OneDrive/Files) using SAF tree URI
+    var cloudFolderUri by rememberSaveable { mutableStateOf<String?>(
+        context.getSharedPreferences("cloud_prefs", 0).getString("treeUri", null)
+    ) }
+    val prefsCloud = remember { context.getSharedPreferences("cloud_prefs", 0) }
     fun refreshRecords() { records = store.loadAll() }
 
     // Expose ImageCapture from CameraPreview so the main Scan button can trigger capture
@@ -158,6 +166,24 @@ fun NoteScannerApp(
         try {
             context.contentResolver.openInputStream(imageUri)?.use { input ->
                 destFile.outputStream().use { output -> input.copyTo(output) }
+            }
+            // If user linked a cloud folder, also copy the image there via SAF
+            cloudFolderUri?.let { treeStr ->
+                try {
+                    val treeUri = Uri.parse(treeStr)
+                    val pickedDoc = DocumentFile.fromTreeUri(context, treeUri)
+                    if (pickedDoc != null && pickedDoc.canWrite()) {
+                        val name = destFile.name
+                        val mime = "image/jpeg"
+                        val existing = pickedDoc.findFile(name)
+                        val target = existing ?: pickedDoc.createFile(mime, name)
+                        if (target != null) {
+                            context.contentResolver.openOutputStream(target.uri)?.use { out ->
+                                destFile.inputStream().use { it.copyTo(out) }
+                            }
+                        }
+                    }
+                } catch (_: Exception) { /* ignore cloud copy errors */ }
             }
             // OCR and persist
             OcrUtil.recognizeTextFromImage(context, destFile) { text ->
@@ -259,6 +285,22 @@ fun NoteScannerApp(
         }
     }
 
+    // SAF: pick a folder (Drive/OneDrive supported via their apps) and persist permission
+    val pickFolderLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                // Persist access across restarts
+                val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                context.contentResolver.takePersistableUriPermission(uri, flags)
+                cloudFolderUri = uri.toString()
+                prefsCloud.edit().putString("treeUri", cloudFolderUri).apply()
+            } catch (_: Exception) {
+            }
+        }
+    }
+
     // Auto-request CAMERA on first open
     LaunchedEffect(hasCameraPermission) {
         if (!hasCameraPermission && !askedPermissionOnce) {
@@ -315,6 +357,17 @@ fun NoteScannerApp(
                             menuExpanded = false
                             val suggested = "notur-" + getTodayIso() + ".csv"
                             createCsvDocLauncher.launch(suggested)
+                        })
+                        DropdownMenuItem(text = { Text(if (cloudFolderUri != null) "Aftengja skýjamöppu" else "Tengja skýjamöppu (Drive/OneDrive)") }, onClick = {
+                            menuExpanded = false
+                            if (cloudFolderUri == null) {
+                                // Ask user to pick a folder via SAF; their app (Drive/OneDrive) provides UI
+                                pickFolderLauncher.launch(null)
+                            } else {
+                                // Unlink
+                                cloudFolderUri = null
+                                prefsCloud.edit().remove("treeUri").apply()
+                            }
                         })
                         HorizontalDivider()
                         DropdownMenuItem(text = { Text(if (darkTheme) "Ljóst þema" else "Dökkt þema") }, onClick = {
