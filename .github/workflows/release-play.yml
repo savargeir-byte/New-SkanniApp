@@ -1,0 +1,97 @@
+name: Release Play App Bundle
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-aab:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;35.0.0"
+
+      - name: Check signing secrets
+        id: signing
+        run: |
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ] && [ -n "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" ] && [ -n "${{ secrets.ANDROID_KEY_ALIAS }}" ] && [ -n "${{ secrets.ANDROID_KEY_PASSWORD }}" ]; then
+            echo "ready=true" >> $GITHUB_OUTPUT
+          else
+            echo "ready=false" >> $GITHUB_OUTPUT
+            echo "Signing secrets missing. Please add ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Restore keystore
+        if: steps.signing.outputs.ready == 'true'
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > notescanner-release.jks
+          {
+            echo "storeFile=notescanner-release.jks";
+            echo "storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}";
+            echo "keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}";
+            echo "keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}";
+          } > keystore.properties
+
+      - name: Make Gradlew executable
+        run: chmod +x gradlew
+
+      - name: Build release App Bundle
+        if: steps.signing.outputs.ready == 'true'
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon clean :app:bundleRelease --stacktrace --warning-mode all --info 2>&1 | tee gradle-build-release-aab.log
+
+      - name: Upload Gradle logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-logs-release-play
+          path: gradle-build-release-aab.log
+
+      - name: List outputs
+        if: steps.signing.outputs.ready == 'true'
+        run: |
+          echo "Listing app/build_android4/outputs/bundle/release" && ls -la app/build_android4/outputs/bundle/release || true
+          echo "Listing app/build_android3/outputs/bundle/release" && ls -la app/build_android3/outputs/bundle/release || true
+          echo "Listing app/build/outputs/bundle/release" && ls -la app/build/outputs/bundle/release || true
+
+      - name: Upload AAB artifact
+        if: steps.signing.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: |
+            app/build_android4/outputs/bundle/release/app-release.aab
+            app/build_android3/outputs/bundle/release/app-release.aab
+            app/build/outputs/bundle/release/app-release.aab
+
+      - name: Create GitHub Release with AAB
+        if: steps.signing.outputs.ready == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            app/build_android4/outputs/bundle/release/app-release.aab
+            app/build_android3/outputs/bundle/release/app-release.aab
+            app/build/outputs/bundle/release/app-release.aab
+          fail_on_unmatched_files: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

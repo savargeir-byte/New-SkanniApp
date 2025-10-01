@@ -37,7 +37,12 @@ jobs:
       - name: Build debug APK
         run: |
           set -o pipefail
-          ./gradlew :app:assembleDebug --stacktrace --info --debug --no-daemon 2>&1 | tee gradle-build-debug.log
+          ./gradlew :app:assembleDebug --stacktrace --warning-mode all --info --debug --no-daemon 2>&1 | tee gradle-build-debug.log
+
+      - name: List debug outputs (diagnostics)
+        run: |
+          echo "Listing app/build_android3/outputs/apk/debug" && ls -la app/build_android3/outputs/apk/debug || true
+          echo "Listing app/build/outputs/apk/debug" && ls -la app/build/outputs/apk/debug || true
 
       - name: Upload Gradle logs
         if: always()
@@ -72,6 +77,7 @@ jobs:
           files: |
             app/build_android3/outputs/apk/debug/app-debug.apk
             app/build/outputs/apk/debug/app-debug.apk
+          fail_on_unmatched_files: false
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

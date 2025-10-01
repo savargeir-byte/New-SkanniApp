@@ -17,11 +17,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
       # Avoid failing the build when GitHub cache backend has incidents
       - name: Set up Gradle (cache read-only)
@@ -65,13 +65,13 @@ jobs:
         if: env.SIGNING_READY == 'true'
         run: |
           set -o pipefail
-          ./gradlew --no-daemon clean :app:assembleRelease --stacktrace --info --debug 2>&1 | tee gradle-build-release-apk.log
+          ./gradlew --no-daemon clean :app:assembleRelease --stacktrace --warning-mode all --info --debug 2>&1 | tee gradle-build-release-apk.log
 
       - name: Build release App Bundle (signed)
         if: env.SIGNING_READY == 'true'
         run: |
           set -o pipefail
-          ./gradlew --no-daemon :app:bundleRelease --stacktrace --info --debug 2>&1 | tee gradle-build-release-aab.log
+          ./gradlew --no-daemon :app:bundleRelease --stacktrace --warning-mode all --info --debug 2>&1 | tee gradle-build-release-aab.log
 
       - name: Upload Gradle logs
         if: always()
@@ -85,8 +85,10 @@ jobs:
       - name: List release outputs (diagnostics)
         if: env.SIGNING_READY == 'true'
         run: |
+          echo "Listing app/build_android4/outputs/apk/release" && ls -la app/build_android4/outputs/apk/release || true
           echo "Listing app/build_android3/outputs/apk/release" && ls -la app/build_android3/outputs/apk/release || true
           echo "Listing app/build/outputs/apk/release" && ls -la app/build/outputs/apk/release || true
+          echo "Listing app/build_android4/outputs/bundle/release" && ls -la app/build_android4/outputs/bundle/release || true
           echo "Listing app/build_android3/outputs/bundle/release" && ls -la app/build_android3/outputs/bundle/release || true
           echo "Listing app/build/outputs/bundle/release" && ls -la app/build/outputs/bundle/release || true
 
@@ -96,6 +98,8 @@ jobs:
         with:
           name: app-release-artifacts
           path: |
+            app/build_android4/outputs/apk/release/app-release.apk
+            app/build_android4/outputs/bundle/release/app-release.aab
             app/build_android3/outputs/apk/release/app-release.apk
             app/build_android3/outputs/bundle/release/app-release.aab
             app/build/outputs/apk/release/app-release.apk
@@ -110,7 +114,7 @@ jobs:
         if: env.SIGNING_READY != 'true'
         run: |
           set -o pipefail
-          ./gradlew :app:assembleDebug --stacktrace --info --debug 2>&1 | tee gradle-build-debug-fallback.log
+          ./gradlew :app:assembleDebug --stacktrace --warning-mode all --info --debug 2>&1 | tee gradle-build-debug-fallback.log
 
       - name: Upload Gradle logs (fallback)
         if: always() && env.SIGNING_READY != 'true'
@@ -124,13 +128,18 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            app/build_android4/outputs/apk/debug/app-debug.apk
+            app/build_android3/outputs/apk/debug/app-debug.apk
+            app/build/outputs/apk/debug/app-debug.apk
 
       - name: Create GitHub Release (on tag)
         if: env.SIGNING_READY == 'true' && startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: |
+            app/build_android4/outputs/apk/release/app-release.apk
+            app/build_android4/outputs/bundle/release/app-release.aab
             app/build_android3/outputs/apk/release/app-release.apk
             app/build_android3/outputs/bundle/release/app-release.aab
             app/build/outputs/apk/release/app-release.apk

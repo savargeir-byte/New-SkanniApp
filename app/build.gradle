@@ -19,15 +19,17 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-	namespace 'com.example.notescanner'
+	// Use a stable reverse-DNS namespace and applicationId for Play Store
+	namespace 'io.github.saeargeir.skanniapp'
 	compileSdk 34
 
 	defaultConfig {
-		applicationId 'com.example.notescanner'
+		applicationId 'io.github.saeargeir.skanniapp'
 		minSdk 24
 		targetSdk 34
-		versionCode 2
-		versionName '1.0.1'
+		// Bump version for Play upload
+		versionCode 3
+		versionName '1.0.2'
 		testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
 	}
 
@@ -44,6 +46,8 @@ android {
 
 	buildTypes {
 		release {
+			// For first Play upload you can keep minify disabled;
+			// later consider enabling and adding keep rules.
 			minifyEnabled false
 			proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 			if (hasSigning) {
@@ -69,14 +73,14 @@ android {
 		jvmTarget = '21'
 	}
 	buildFeatures {
-		compose true
+		compose = true
 	}
 	composeOptions {
-		kotlinCompilerExtensionVersion '1.5.14'
+		kotlinCompilerExtensionVersion = '1.5.14'
 	}
 
 	// Use a fresh build directory to avoid stale Windows file locks under app/build
-	setBuildDir 'build_android3'
+	setBuildDir 'build_android4'
 
 	// Package project image folder as assets so we can load logo.png at runtime
 	sourceSets {

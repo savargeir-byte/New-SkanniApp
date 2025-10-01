@@ -36,7 +36,7 @@ jobs:
       - name: Build release APK and AAB (unsigned)
         run: |
           set -o pipefail
-          ./gradlew --no-daemon clean :app:assembleRelease :app:bundleRelease --stacktrace --info --debug 2>&1 | tee gradle-build-release-unsigned.log
+          ./gradlew --no-daemon clean :app:assembleRelease :app:bundleRelease --stacktrace --warning-mode all --info --debug 2>&1 | tee gradle-build-release-unsigned.log
 
       - name: Upload Gradle logs
         if: always()
@@ -47,8 +47,10 @@ jobs:
 
       - name: Verify APK/AAB exist
         run: |
+          echo "Listing app/build_android4/outputs/apk/release" && ls -la app/build_android4/outputs/apk/release || true
           echo "Listing app/build_android3/outputs/apk/release" && ls -la app/build_android3/outputs/apk/release || true
           echo "Listing app/build/outputs/apk/release" && ls -la app/build/outputs/apk/release || true
+          echo "Listing app/build_android4/outputs/bundle/release" && ls -la app/build_android4/outputs/bundle/release || true
           echo "Listing app/build_android3/outputs/bundle/release" && ls -la app/build_android3/outputs/bundle/release || true
           echo "Listing app/build/outputs/bundle/release" && ls -la app/build/outputs/bundle/release || true
 
@@ -57,7 +59,9 @@ jobs:
         with:
           name: unsigned-release-outputs
           path: |
+            app/build_android4/outputs/apk/release/**
             app/build_android3/outputs/apk/release/**
             app/build/outputs/apk/release/**
+            app/build_android4/outputs/bundle/release/**
             app/build_android3/outputs/bundle/release/**
             app/build/outputs/bundle/release/**

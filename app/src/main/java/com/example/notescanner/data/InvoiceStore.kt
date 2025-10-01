@@ -66,6 +66,7 @@ class InvoiceStore(private val context: Context) {
         amount = o.getDouble("amount"),
         vat = o.getDouble("vat"),
         imagePath = o.getString("imagePath"),
-        invoiceNumber = if (o.has("invoiceNumber")) o.optString("invoiceNumber", null) else null
+        // org.json's optString(name, fallback) requires a non-null fallback; use empty string and map to null
+        invoiceNumber = o.optString("invoiceNumber", "").takeIf { it.isNotEmpty() }
     )
 }
