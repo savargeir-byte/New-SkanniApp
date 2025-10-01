@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'r*'
+      - 'v*'
   workflow_dispatch:
 
 permissions:
@@ -57,12 +58,18 @@ jobs:
         if: env.SIGNING_READY == 'true'
         run: ./gradlew :app:assembleRelease --stacktrace --info
 
-      - name: Upload artifact (release APK)
+      - name: Build release App Bundle (signed)
+        if: env.SIGNING_READY == 'true'
+        run: ./gradlew :app:bundleRelease --stacktrace --info
+
+      - name: Upload artifact (release APK/AAB)
         if: env.SIGNING_READY == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-apk
-          path: app/build/outputs/apk/release/app-release.apk
+          name: app-release-artifacts
+          path: |
+            app/build/outputs/apk/release/app-release.apk
+            app/build/outputs/bundle/release/app-release.aab
 
       # Fallback path: if signing secrets are missing, still produce a usable debug APK
       - name: Make Gradle executable (fallback)
@@ -84,7 +91,9 @@ jobs:
         if: env.SIGNING_READY == 'true' && startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: app/build/outputs/apk/release/app-release.apk
+          files: |
+            app/build/outputs/apk/release/app-release.apk
+            app/build/outputs/bundle/release/app-release.aab
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
