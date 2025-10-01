@@ -462,6 +462,7 @@ fun NoteScannerApp(
             try { context.assets.open("logo.png").use { android.graphics.BitmapFactory.decodeStream(it) } }
             catch (_: Exception) { null }
         }
+        val logoTargetHeight = 44.dp // make logo visibly larger without being too tall
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -470,20 +471,25 @@ fun NoteScannerApp(
                     if (darkTheme) MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
                     else MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
                 )
-                .padding(vertical = 6.dp),
+                .padding(vertical = 4.dp),
             contentAlignment = Alignment.Center
         ) {
             if (logoBmp != null) {
+                val aspect = remember(logoBmp) { logoBmp.width.toFloat() / logoBmp.height.toFloat() }
+                // Scale by height to keep crisp aspect; will be much wider than before
                 Image(
                     bitmap = logoBmp.asImageBitmap(),
                     contentDescription = "Logo",
-                    modifier = Modifier.size(width = 96.dp, height = 28.dp)
+                    modifier = Modifier.height(logoTargetHeight),
+                    contentScale = ContentScale.Fit
                 )
             } else {
+                // Fallback approximate aspect; use same target height
                 Image(
                     painter = painterResource(id = R.drawable.ic_app_logo),
                     contentDescription = "Logo",
-                    modifier = Modifier.size(width = 96.dp, height = 28.dp)
+                    modifier = Modifier.height(logoTargetHeight),
+                    contentScale = ContentScale.Fit
                 )
             }
         }
