@@ -51,11 +51,11 @@ android {
 			minifyEnabled false
 			proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 			if (hasSigning) {
-				signingConfig signingConfigs.release
+				signingConfig = signingConfigs.release
 			} else {
 				// Fallback: sign release with the debug keystore so the APK is installable
 				// (useful for GitHub Releases and manual installs; do NOT use for Play Store)
-				signingConfig signingConfigs.debug
+				signingConfig = signingConfigs.debug
 			}
 		}
 		debug {
@@ -67,7 +67,7 @@ android {
 	compileOptions {
 		sourceCompatibility JavaVersion.VERSION_21
 		targetCompatibility JavaVersion.VERSION_21
-		coreLibraryDesugaringEnabled true
+		coreLibraryDesugaringEnabled = true
 	}
 	kotlinOptions {
 		jvmTarget = '21'
