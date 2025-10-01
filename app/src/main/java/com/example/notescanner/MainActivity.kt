@@ -370,6 +370,14 @@ fun NoteScannerApp(
                             }
                         })
                         HorizontalDivider()
+                        DropdownMenuItem(text = { Text("Persónuverndarstefna") }, onClick = {
+                            menuExpanded = false
+                            val url = "https://saeargeir.github.io/SkanniApp/privacy-policy.html"
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                context.startActivity(intent)
+                            } catch (_: Exception) {}
+                        })
                         DropdownMenuItem(text = { Text(if (darkTheme) "Ljóst þema" else "Dökkt þema") }, onClick = {
                             menuExpanded = false
                             onToggleTheme()
