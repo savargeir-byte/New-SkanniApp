@@ -141,6 +141,7 @@ fun NoteScannerApp(
     var showOverview by rememberSaveable { mutableStateOf(false) }
     var selectedRecord by remember { mutableStateOf<InvoiceRecord?>(null) }
     var records by remember { mutableStateOf(store.loadAll()) }
+    var menuExpanded by remember { mutableStateOf(false) }
     fun refreshRecords() { records = store.loadAll() }
 
     // Expose ImageCapture from CameraPreview so the main Scan button can trigger capture
@@ -242,6 +243,22 @@ fun NoteScannerApp(
         }
     }
 
+    // Storage Access Framework: Save CSV to user-selected location (Drive/OneDrive supported via their apps)
+    val createCsvDocLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                val csv = buildCsvString(records)
+                context.contentResolver.openOutputStream(uri)?.use { out ->
+                    out.write(csv.toByteArray(Charsets.UTF_8))
+                }
+            } catch (t: Throwable) {
+                Log.w("NoteScanner", "Failed writing CSV to chosen location", t)
+            }
+        }
+    }
+
     // Auto-request CAMERA on first open
     LaunchedEffect(hasCameraPermission) {
         if (!hasCameraPermission && !askedPermissionOnce) {
@@ -279,13 +296,39 @@ fun NoteScannerApp(
         // crashes when a non-vector XML drawable is accidentally resolved on some devices.
 
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "Velkomin í nótuskanna!",
-                    modifier = Modifier.padding(bottom = 8.dp),
-                    style = MaterialTheme.typography.titleLarge
-                )
-                // Theme toggle
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Simple hamburger button (dropdown menu)
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Text("☰", fontSize = 22.sp)
+                    }
+                    DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                        DropdownMenuItem(text = { Text("Senda CSV í tölvupósti") }, onClick = {
+                            menuExpanded = false
+                            exportCsv(records, context, chooserTitle = "Senda CSV")
+                        })
+                        DropdownMenuItem(text = { Text("Vista CSV í ský (Drive/OneDrive)") }, onClick = {
+                            menuExpanded = false
+                            val suggested = "notur-" + getTodayIso() + ".csv"
+                            createCsvDocLauncher.launch(suggested)
+                        })
+                        HorizontalDivider()
+                        DropdownMenuItem(text = { Text(if (darkTheme) "Ljóst þema" else "Dökkt þema") }, onClick = {
+                            menuExpanded = false
+                            onToggleTheme()
+                        })
+                    })
+                    Text(
+                        "Velkomin í nótuskanna!",
+                        modifier = Modifier.padding(bottom = 8.dp),
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                }
+                // Theme toggle (quick)
                 OutlinedButton(onClick = onToggleTheme, modifier = Modifier.height(40.dp)) {
                     Text(if (darkTheme) "Ljóst" else "Dökkt")
                 }
@@ -809,8 +852,8 @@ fun OverviewScreen(
 private enum class SortBy { VENDOR_ASC, VENDOR_DESC, AMOUNT_ASC, AMOUNT_DESC, DATE_ASC, DATE_DESC }
 
 // CSV export helper
-private fun exportCsv(list: List<InvoiceRecord>, context: android.content.Context) {
-    val csv = buildString {
+private fun buildCsvString(list: List<InvoiceRecord>): String {
+    return buildString {
         // Match Excel columns: ReikningsNr,Fyrirtæki,Dagsetning,Mánuður,Nettó,VSK,Heild,Skrá
         appendLine("ReikningsNr,Fyrirtæki,Dagsetning,Mánuður,Nettó,VSK,Heild,Skrá")
         fun esc(s: String): String {
@@ -833,16 +876,29 @@ private fun exportCsv(list: List<InvoiceRecord>, context: android.content.Contex
             appendLine(row)
         }
     }
+}
+
+private fun exportCsv(
+    list: List<InvoiceRecord>,
+    context: android.content.Context,
+    chooserTitle: String = "Deila CSV"
+) {
+    val csv = buildCsvString(list)
     val file = File(context.filesDir, "notur.csv")
     file.writeText(csv, Charsets.UTF_8)
-    val uri = androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".provider", file)
-    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+    val uri = androidx.core.content.FileProvider.getUriForFile(
+        context,
+        context.packageName + ".provider",
+        file
+    )
+    val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
         type = "text/csv"
         putExtra(android.content.Intent.EXTRA_SUBJECT, "Nótur CSV")
         putExtra(android.content.Intent.EXTRA_STREAM, uri)
         addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
-    context.startActivity(intent)
+    val chooser = android.content.Intent.createChooser(send, chooserTitle)
+    context.startActivity(chooser)
 }
 
 @Composable
