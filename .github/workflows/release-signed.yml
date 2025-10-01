@@ -89,6 +89,7 @@ jobs:
           echo "Listing app/build_android3/outputs/apk/release" && ls -la app/build_android3/outputs/apk/release || true
           echo "Listing app/build/outputs/apk/release" && ls -la app/build/outputs/apk/release || true
           echo "Listing app/build_android4/outputs/bundle/release" && ls -la app/build_android4/outputs/bundle/release || true
+          echo "Listing app/build_android4/outputs/native-debug-symbols/release" && ls -la app/build_android4/outputs/native-debug-symbols/release || true
           echo "Listing app/build_android3/outputs/bundle/release" && ls -la app/build_android3/outputs/bundle/release || true
           echo "Listing app/build/outputs/bundle/release" && ls -la app/build/outputs/bundle/release || true
 
@@ -100,6 +101,7 @@ jobs:
           path: |
             app/build_android4/outputs/apk/release/app-release.apk
             app/build_android4/outputs/bundle/release/app-release.aab
+            app/build_android4/outputs/native-debug-symbols/release/native-debug-symbols.zip
             app/build_android3/outputs/apk/release/app-release.apk
             app/build_android3/outputs/bundle/release/app-release.aab
             app/build/outputs/apk/release/app-release.apk
@@ -140,6 +142,7 @@ jobs:
           files: |
             app/build_android4/outputs/apk/release/app-release.apk
             app/build_android4/outputs/bundle/release/app-release.aab
+            app/build_android4/outputs/native-debug-symbols/release/native-debug-symbols.zip
             app/build_android3/outputs/apk/release/app-release.apk
             app/build_android3/outputs/bundle/release/app-release.aab
             app/build/outputs/apk/release/app-release.apk

@@ -70,6 +70,7 @@ jobs:
         if: steps.signing.outputs.ready == 'true'
         run: |
           echo "Listing app/build_android4/outputs/bundle/release" && ls -la app/build_android4/outputs/bundle/release || true
+          echo "Listing app/build_android4/outputs/native-debug-symbols/release" && ls -la app/build_android4/outputs/native-debug-symbols/release || true
           echo "Listing app/build_android3/outputs/bundle/release" && ls -la app/build_android3/outputs/bundle/release || true
           echo "Listing app/build/outputs/bundle/release" && ls -la app/build/outputs/bundle/release || true
 
@@ -80,6 +81,7 @@ jobs:
           name: app-release-aab
           path: |
             app/build_android4/outputs/bundle/release/app-release.aab
+            app/build_android4/outputs/mapping/release/mapping.txt
             app/build_android3/outputs/bundle/release/app-release.aab
             app/build/outputs/bundle/release/app-release.aab
 
@@ -89,6 +91,8 @@ jobs:
         with:
           files: |
             app/build_android4/outputs/bundle/release/app-release.aab
+            app/build_android4/outputs/native-debug-symbols/release/native-debug-symbols.zip
+            app/build_android4/outputs/mapping/release/mapping.txt
             app/build_android3/outputs/bundle/release/app-release.aab
             app/build/outputs/bundle/release/app-release.aab
           fail_on_unmatched_files: false

@@ -140,21 +140,29 @@ object OcrUtil {
             if (tableStart >= 0 && idx >= tableStart && idx <= tableEnd) return@forEachIndexed
             val l = line.lowercase()
 
-            // Prefer explicit Icelandic labels first (these appear on both receipts)
-            if (total == null && (
+            // Prefer explicit Icelandic total labels and avoid misreading 'Upphæð án vsk.' as total
+            if (total == null) {
+                val isExplicitTotal =
                     l.contains(Regex("\\b(til\\s*grei[ðd]slu)\\b")) ||
                     l.contains(Regex("\\b(samtals(\\s*isk)?(\\s*me[ðd]\\s*vsk)?)\\b")) ||
                     l.contains(Regex("\\b(heild\\s*(me[ðd])?\\s*vsk)\\b")) ||
-                    l.contains(Regex("\\b(upph[aæ][ðd])\\b")) ||
+                    // Accept generic 'samtals' only if not explicitly 'án vsk'
+                    (l.contains("samtals") && !l.contains("an vsk") && !l.contains("án vsk")) ||
+                    // English fallbacks
                     l.contains(Regex("\\b(total|amount)\\b"))
-                )
-            ) {
-                // Use last number on the line (right-aligned totals)
-                numRe.findAll(line).lastOrNull()?.let { total = parseNumber(it.value) }
+
+                // Exclusions: lines that explicitly describe tax amount or subtotal should not be treated as total
+                val isSubtotalLine = l.contains("an vsk") || l.contains("án vsk") || l.contains("nett") || l.contains("netto")
+                val isTaxAmountLine = l.contains("vsk-upph") || (l.contains("vsk") && l.contains("upph"))
+
+                if (isExplicitTotal && !isSubtotalLine && !isTaxAmountLine) {
+                    // Use last number on the line (right-aligned totals)
+                    numRe.findAll(line).lastOrNull()?.let { total = parseNumber(it.value) }
+                }
             }
             if (subtotal == null && (
                     l.contains(Regex("\\b(heildar\\s*isk\\s*an\\s*vsk)\\b")) ||
-                    l.contains(Regex("\\b(\\ban\\s*vsk|ver[ðd]\\s*an\\s*vsk|nett[oó]|netto|subtotal)\\b"))
+                    l.contains(Regex("\\b(\\ban\\s*vsk|án\\s*vsk|ver[ðd]\\s*an\\s*vsk|upph[aæ][ðd]\\s*an\\s*vsk|nett[oó]|netto|subtotal)\\b"))
                 )
             ) {
                 numRe.findAll(line).lastOrNull()?.let { subtotal = parseNumber(it.value) }
@@ -172,9 +180,13 @@ object OcrUtil {
                 // We collect ALL numeric tokens after the percent and choose the smallest as the VAT amount.
                 val tail = if (afterIdx in 0..line.lastIndex) line.substring(afterIdx) else ""
                 val numsAfter = numRe.findAll(tail).mapNotNull { n -> parseNumber(n.value) }.toList()
-                val chosenAmt = when {
-                    numsAfter.size >= 1 -> numsAfter.minOrNull()
-                    else -> numRe.findAll(line).mapNotNull { n -> parseNumber(n.value) }.lastOrNull()
+                val chosenAmt = if (numsAfter.isNotEmpty()) {
+                    // Prefer clearly smaller values (tax) over large nets on the same line
+                    val maxOnTail = numsAfter.maxOrNull() ?: 0.0
+                    val plausibleTax = numsAfter.filter { it > 0 && (maxOnTail == 0.0 || it <= maxOnTail * 0.6) }
+                    (plausibleTax.minOrNull() ?: numsAfter.minOrNull())
+                } else {
+                    numRe.findAll(line).mapNotNull { n -> parseNumber(n.value) }.lastOrNull()
                 }
                 if (chosenAmt != null) {
                     rateMap[rate] = (rateMap[rate] ?: 0.0) + chosenAmt
