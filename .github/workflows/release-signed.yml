@@ -56,11 +56,11 @@ jobs:
 
       - name: Build release APK (signed)
         if: env.SIGNING_READY == 'true'
-        run: ./gradlew :app:assembleRelease --stacktrace --info
+        run: ./gradlew --no-daemon clean :app:assembleRelease --stacktrace --info
 
       - name: Build release App Bundle (signed)
         if: env.SIGNING_READY == 'true'
-        run: ./gradlew :app:bundleRelease --stacktrace --info
+        run: ./gradlew --no-daemon :app:bundleRelease --stacktrace --info
 
       - name: Upload artifact (release APK/AAB)
         if: env.SIGNING_READY == 'true'
@@ -68,8 +68,8 @@ jobs:
         with:
           name: app-release-artifacts
           path: |
-            app/build/outputs/apk/release/app-release.apk
-            app/build/outputs/bundle/release/app-release.aab
+            app/build_android3/outputs/apk/release/app-release.apk
+            app/build_android3/outputs/bundle/release/app-release.aab
 
       # Fallback path: if signing secrets are missing, still produce a usable debug APK
       - name: Make Gradle executable (fallback)
@@ -92,8 +92,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            app/build/outputs/apk/release/app-release.apk
-            app/build/outputs/bundle/release/app-release.aab
+            app/build_android3/outputs/apk/release/app-release.apk
+            app/build_android3/outputs/bundle/release/app-release.aab
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
