@@ -47,6 +47,8 @@ object OcrUtil {
             return cleaned.toDoubleOrNull()
         }
 
+        fun parsePercent(s: String): Double? = parseNumber(s)
+
         // Percent parser: keep dot/comma as decimal separator (do not strip '.')
         fun parsePercent(s: String): Double? {
             val cleaned = s.trim()
@@ -61,8 +63,9 @@ object OcrUtil {
             // Allow either comma or dot decimals in percentage: 24% or 24,0% or 24.0%
             val pctPattern = "([0-9]{1,2}(?:[.,][0-9]{1,2})?)\\s*%"
         val numRe = Regex(numPattern)
-        val pctRe = Regex(pctPattern)
-
+            val numPattern = "([0-9]{1,3}(?:[. ][0-9]{3})*(?:,[0-9]{1,2})?|[0-9]+(?:,[0-9]{1,2})?)"
+            // Accept percent with comma or dot decimals (e.g., 24.0% or 24,0%)
+            val pctPattern = "([0-9]{1,2}(?:[.,][0-9]{1,2})?)\\s*%"
         var subtotal: Double? = null
         var tax: Double? = null
         var total: Double? = null
@@ -80,11 +83,11 @@ object OcrUtil {
             (ll.contains("upph") || ll.contains("heild") || ll.contains("samtals"))
             }
             if (headerIdx >= 0) {
-                val rowRe4 = Regex("^\\s*([0-9]{1,2}(?:,[0-9]{1,2})?)\\s*%\\s+" +
+        val rowRe4 = Regex("^\\s*([0-9]{1,2}(?:[.,][0-9]{1,2})?)\\s*%\\s+" +
                         "([0-9][0-9\\., ]*)\\s+" +
                         "([0-9][0-9\\., ]*)\\s+" +
                         "([0-9][0-9\\., ]*)\\s*$")
-                val rowRe3 = Regex("^\\s*([0-9]{1,2}(?:,[0-9]{1,2})?)\\s*%\\s+" +
+        val rowRe3 = Regex("^\\s*([0-9]{1,2}(?:[.,][0-9]{1,2})?)\\s*%\\s+" +
                         "([0-9][0-9\\., ]*)\\s+" +
                         "([0-9][0-9\\., ]*)\\s*$")
 
