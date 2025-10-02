@@ -52,6 +52,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.IconButton
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.sp
@@ -135,7 +138,6 @@ fun NoteScannerApp(
     val store = remember { InvoiceStore(context) }
     var ocrResult by remember { mutableStateOf("") }
     var isCameraStarted by rememberSaveable { mutableStateOf(false) }
-    var lastPhotoPath by rememberSaveable { mutableStateOf("") }
     var lastExcelPath by rememberSaveable { mutableStateOf("") }
     var cameraPermissionDenied by rememberSaveable { mutableStateOf(false) }
     var askedPermissionOnce by rememberSaveable { mutableStateOf(false) }
@@ -150,6 +152,7 @@ fun NoteScannerApp(
         context.getSharedPreferences("cloud_prefs", 0).getString("treeUri", null)
     ) }
     val prefsCloud = remember { context.getSharedPreferences("cloud_prefs", 0) }
+    var cloudSyncStatus by remember { mutableStateOf<String?>(null) }
     fun refreshRecords() { records = store.loadAll() }
 
     // Expose ImageCapture from CameraPreview so the main Scan button can trigger capture
@@ -181,9 +184,17 @@ fun NoteScannerApp(
                             context.contentResolver.openOutputStream(target.uri)?.use { out ->
                                 destFile.inputStream().use { it.copyTo(out) }
                             }
+                            cloudSyncStatus = "Mynd vistað í ský: ${target.name}"
+                        } else {
+                            cloudSyncStatus = "Villa: Gat ekki búið til skrá í ský"
                         }
+                    } else {
+                        cloudSyncStatus = "Villa: Engin skrifheimild í skýjamöppu"
                     }
-                } catch (_: Exception) { /* ignore cloud copy errors */ }
+                } catch (e: Exception) {
+                    cloudSyncStatus = "Villa við vistun í ský: ${e.message}"
+                    Log.w("CloudSync", "Failed to upload image to cloud", e)
+                }
             }
             // OCR and persist
             OcrUtil.recognizeTextFromImage(context, destFile) { text ->
@@ -212,6 +223,27 @@ fun NoteScannerApp(
                     excelFile
                 )
                 lastExcelPath = excelFile.absolutePath
+
+                // Also sync Excel file to cloud if connected
+                cloudFolderUri?.let { treeStr ->
+                    try {
+                        val treeUri = Uri.parse(treeStr)
+                        val pickedDoc = DocumentFile.fromTreeUri(context, treeUri)
+                        pickedDoc?.takeIf { it.canWrite() }?.let { doc ->
+                            val excelName = "reikningar.xlsx"
+                            val excelMime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                            val existing = doc.findFile(excelName)
+                            val target = existing ?: doc.createFile(excelMime, excelName)
+                            target?.let { targetFile ->
+                                context.contentResolver.openOutputStream(targetFile.uri)?.use { out ->
+                                    excelFile.inputStream().use { it.copyTo(out) }
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.w("CloudSync", "Failed to upload Excel to cloud", e)
+                    }
+                }
 
                 val record = InvoiceRecord(
                     id = System.currentTimeMillis(),
@@ -296,8 +328,34 @@ fun NoteScannerApp(
                 context.contentResolver.takePersistableUriPermission(uri, flags)
                 cloudFolderUri = uri.toString()
                 prefsCloud.edit().putString("treeUri", cloudFolderUri).apply()
-            } catch (_: Exception) {
+                
+                // Test the connection immediately and provide feedback
+                val pickedDoc = DocumentFile.fromTreeUri(context, uri)
+                if (pickedDoc != null && pickedDoc.canWrite()) {
+                    val folderName = pickedDoc.name ?: "skýjamappa"
+                    cloudSyncStatus = "✅ Tenging tókst! Skýjamappa: $folderName"
+                    
+                    // Test by creating a test file to verify write permissions
+                    try {
+                        val testFile = pickedDoc.createFile("text/plain", ".skanniapp_test")
+                        if (testFile != null) {
+                            testFile.delete() // Clean up test file
+                            Log.i("CloudSync", "Write test successful for cloud folder")
+                        }
+                    } catch (e: Exception) {
+                        Log.w("CloudSync", "Write test failed but folder seems accessible", e)
+                    }
+                } else {
+                    cloudSyncStatus = "⚠️ Tengt en engin skrifheimild - prófaðu aðra möppu"
+                }
+            } catch (e: Exception) {
+                cloudSyncStatus = "❌ Villa við tengingu: ${e.message}"
+                cloudFolderUri = null // Reset on failure
+                prefsCloud.edit().remove("treeUri").apply()
+                Log.w("CloudSync", "Failed to connect to cloud folder", e)
             }
+        } else {
+            cloudSyncStatus = "Tengingu hætt við"
         }
     }
 
@@ -358,7 +416,7 @@ fun NoteScannerApp(
                             val suggested = "notur-" + getTodayIso() + ".csv"
                             createCsvDocLauncher.launch(suggested)
                         })
-                        DropdownMenuItem(text = { Text(if (cloudFolderUri != null) "Aftengja skýjamöppu" else "Tengja skýjamöppu (Drive/OneDrive)") }, onClick = {
+                        DropdownMenuItem(text = { Text(if (cloudFolderUri != null) "🌥️ Aftengja skýjamöppu" else "🌥️ Tengja skýjamöppu (OneDrive/Drive)") }, onClick = {
                             menuExpanded = false
                             if (cloudFolderUri == null) {
                                 // Ask user to pick a folder via SAF; their app (Drive/OneDrive) provides UI
@@ -366,9 +424,37 @@ fun NoteScannerApp(
                             } else {
                                 // Unlink
                                 cloudFolderUri = null
+                                cloudSyncStatus = "Skýjatenging aftengt"
                                 prefsCloud.edit().remove("treeUri").apply()
                             }
                         })
+                        if (cloudFolderUri != null) {
+                            DropdownMenuItem(text = { Text("🔍 Prófa skýjatengingu") }, onClick = {
+                                menuExpanded = false
+                                // Test cloud connection
+                                cloudFolderUri?.let { treeStr ->
+                                    try {
+                                        val treeUri = Uri.parse(treeStr)
+                                        val pickedDoc = DocumentFile.fromTreeUri(context, treeUri)
+                                        if (pickedDoc != null && pickedDoc.canWrite()) {
+                                            // Try to create a test file to verify write permissions
+                                            val testFile = pickedDoc.createFile("text/plain", ".skanniapp_test_${System.currentTimeMillis()}")
+                                            if (testFile != null) {
+                                                testFile.delete() // Clean up immediately
+                                                cloudSyncStatus = "✅ Skýjatenging virkar fullkomlega!"
+                                            } else {
+                                                cloudSyncStatus = "⚠️ Skýjatenging virkar en gæti haft takmörk"
+                                            }
+                                        } else {
+                                            cloudSyncStatus = "❌ Skýjatenging virkar ekki - engin skrifheimild"
+                                        }
+                                    } catch (e: Exception) {
+                                        cloudSyncStatus = "❌ Villa í skýjatengingu: ${e.message}"
+                                        Log.w("CloudSync", "Cloud connection test failed", e)
+                                    }
+                                }
+                            })
+                        }
                         HorizontalDivider()
                         DropdownMenuItem(text = { Text("Persónuverndarstefna") }, onClick = {
                             menuExpanded = false
@@ -383,15 +469,70 @@ fun NoteScannerApp(
                             onToggleTheme()
                         })
                     }
-                    Text(
-                        "Velkomin í nótuskanna!",
-                        modifier = Modifier.padding(bottom = 8.dp),
-                        style = MaterialTheme.typography.titleLarge
-                    )
+                    Column {
+                        Text(
+                            "Velkomin í nótuskanna!",
+                            modifier = Modifier.padding(bottom = 4.dp),
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        // Cloud connection status prominently displayed
+                        if (cloudFolderUri != null) {
+                            Text(
+                                "🌥️ Tengt við skýjamöppu",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        } else {
+                            Text(
+                                "📁 Engin skýjatenging",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
                 // Theme toggle (quick)
                 OutlinedButton(onClick = onToggleTheme, modifier = Modifier.height(40.dp)) {
                     Text(if (darkTheme) "Ljóst" else "Dökkt")
+                }
+            }
+
+            // Cloud setup prompt when not connected
+            if (cloudFolderUri == null) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                        .clickable { pickFolderLauncher.launch(null) },
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "🌥️",
+                                fontSize = 24.sp,
+                                modifier = Modifier.padding(end = 12.dp)
+                            )
+                            Column {
+                                Text(
+                                    "Tengja skýjamöppu",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text(
+                                    "Vista myndir og Excel skrár í OneDrive, Google Drive eða aðrar skýjamöppur",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
@@ -505,6 +646,42 @@ fun NoteScannerApp(
                 Text("Senda Excel í email")
             }
         }
+
+        // Show cloud sync status
+        cloudSyncStatus?.let { status ->
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = when {
+                        status.contains("✅") -> MaterialTheme.colorScheme.primaryContainer
+                        status.contains("❌") || status.contains("Villa") -> MaterialTheme.colorScheme.errorContainer
+                        else -> MaterialTheme.colorScheme.surfaceVariant
+                    }
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = status,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    IconButton(
+                        onClick = { cloudSyncStatus = null },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Text("×", fontSize = 16.sp)
+                    }
+                }
+            }
+        }
         }
 
         // Bottom primary scan button — only on the home screen (no lists/overview/detail)
@@ -594,7 +771,6 @@ fun NoteScannerApp(
             contentAlignment = Alignment.Center
         ) {
             if (logoBmp != null) {
-                val aspect = remember(logoBmp) { logoBmp.width.toFloat() / logoBmp.height.toFloat() }
                 // Scale by height to keep crisp aspect; will be much wider than before
                 Image(
                     bitmap = logoBmp.asImageBitmap(),
@@ -703,7 +879,6 @@ fun OverviewScreen(
     var monthFilterExpanded by remember { mutableStateOf(false) }
     var selectedMonth by rememberSaveable { mutableStateOf<String?>(prefs.getString("month", null)) }
     var vendorQuery by rememberSaveable { mutableStateOf(prefs.getString("vendor", "") ?: "") }
-    var sortBy by rememberSaveable { mutableStateOf(SortBy.valueOf(prefs.getString("sort", SortBy.DATE_DESC.name)!!)) }
 
     val months = remember(records) { records.map { it.monthKey }.distinct().sortedDescending() }
     val filtered = remember(records, selectedMonth, vendorQuery) {
@@ -712,15 +887,9 @@ fun OverviewScreen(
             (vendorQuery.isBlank() || rec.vendor.contains(vendorQuery, ignoreCase = true))
         }
     }
-    val sorted = remember(filtered, sortBy) {
-        when (sortBy) {
-            SortBy.VENDOR_ASC -> filtered.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.vendor })
-            SortBy.VENDOR_DESC -> filtered.sortedWith(compareByDescending(String.CASE_INSENSITIVE_ORDER) { it.vendor })
-            SortBy.AMOUNT_ASC -> filtered.sortedBy { it.amount }
-            SortBy.AMOUNT_DESC -> filtered.sortedByDescending { it.amount }
-            SortBy.DATE_ASC -> filtered.sortedBy { it.date }
-            SortBy.DATE_DESC -> filtered.sortedByDescending { it.date }
-        }
+    // Always sort by date descending (newest first)
+    val sorted = remember(filtered) {
+        filtered.sortedByDescending { it.date }
     }
 
     Column(modifier = Modifier.padding(top = 16.dp)) {
@@ -774,57 +943,6 @@ fun OverviewScreen(
                         textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
                         shape = RoundedCornerShape(12.dp)
                     )
-                }
-
-                Spacer(Modifier.size(8.dp))
-
-                // Sort buttons
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    OutlinedButton(
-                        onClick = {
-                            sortBy = when (sortBy) {
-                                SortBy.VENDOR_ASC -> SortBy.VENDOR_DESC
-                                SortBy.VENDOR_DESC -> SortBy.VENDOR_ASC
-                                else -> SortBy.VENDOR_ASC
-                            }
-                        },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    ) { Text("Raða: Seljandi", maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 14.sp) }
-
-                    Spacer(Modifier.size(8.dp))
-
-                    OutlinedButton(
-                        onClick = {
-                            sortBy = when (sortBy) {
-                                SortBy.AMOUNT_ASC -> SortBy.AMOUNT_DESC
-                                SortBy.AMOUNT_DESC -> SortBy.AMOUNT_ASC
-                                else -> SortBy.AMOUNT_DESC
-                            }
-                        },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    ) { Text("Raða: Upphæð", maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 14.sp) }
-
-                    Spacer(Modifier.size(8.dp))
-
-                    OutlinedButton(
-                        onClick = {
-                            sortBy = when (sortBy) {
-                                SortBy.DATE_ASC -> SortBy.DATE_DESC
-                                SortBy.DATE_DESC -> SortBy.DATE_ASC
-                                else -> SortBy.DATE_DESC
-                            }
-                        },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    ) { Text("Raða: Dagsetning", maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 14.sp) }
                 }
 
                 Spacer(Modifier.size(8.dp))
@@ -904,13 +1022,11 @@ fun OverviewScreen(
         }
     }
 
-    // persist
-    LaunchedEffect(selectedMonth, vendorQuery, sortBy) {
-        prefs.edit().putString("month", selectedMonth).putString("vendor", vendorQuery).putString("sort", sortBy.name).apply()
+    // persist filter preferences
+    LaunchedEffect(selectedMonth, vendorQuery) {
+        prefs.edit().putString("month", selectedMonth).putString("vendor", vendorQuery).apply()
     }
 }
-
-private enum class SortBy { VENDOR_ASC, VENDOR_DESC, AMOUNT_ASC, AMOUNT_DESC, DATE_ASC, DATE_DESC }
 
 // CSV export helper
 private fun buildCsvString(list: List<InvoiceRecord>): String {
@@ -1108,7 +1224,6 @@ fun CameraPreview(
     onCameraReady: (androidx.camera.core.Camera) -> Unit,
     torchOn: Boolean
 ) {
-    val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var cameraObj by remember { mutableStateOf<androidx.camera.core.Camera?>(null) }

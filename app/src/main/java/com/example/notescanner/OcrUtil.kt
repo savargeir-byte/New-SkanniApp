@@ -34,7 +34,7 @@ object OcrUtil {
 
     fun extractVatAmounts(ocrText: String): VatExtraction {
         fun parseNumber(s: String): Double? {
-            // Normalize whitespace and separators; keep only numeric normalization
+            // Normalize whitespace and separators for Icelandic formatting
             val cleaned = s
                 .replace("\u00A0", " ") // NBSP -> space
                 .trim()
@@ -42,9 +42,36 @@ object OcrUtil {
                 .replace("kr", "")
                 .replace(" isk", "")
                 .replace(" ", "")
-                .replace(".", "") // drop thousand separators like 31.656 -> 31656
-                .replace(",", ".") // comma decimals -> dot
-            return cleaned.toDoubleOrNull()
+            
+            // Handle Icelandic number formatting:
+            // - Thousands separated by dots: 31.656
+            // - Decimals separated by commas: 1.234,50
+            // - For amounts like 7.598 we need to determine if it's 7598.0 or 7.598
+            val result = when {
+                // Pattern: digits.digits,digits (e.g., "1.234,50") - thousands with decimal
+                cleaned.matches(Regex("[0-9]{1,3}(?:\\.[0-9]{3})*,[0-9]{1,2}")) -> {
+                    cleaned.replace(".", "").replace(",", ".")
+                }
+                // Pattern: digits,digits (e.g., "1234,50") - simple decimal with comma
+                cleaned.matches(Regex("[0-9]+,[0-9]{1,2}")) -> {
+                    cleaned.replace(",", ".")
+                }
+                // Pattern: digits.digits where digits is exactly 3 (e.g., "31.656") - likely thousands
+                cleaned.matches(Regex("[0-9]{1,3}\\.[0-9]{3}")) -> {
+                    cleaned.replace(".", "")
+                }
+                // Pattern: digits.digit or digits.digits (small decimal, e.g., "5.0", "24.5") - likely decimal
+                cleaned.matches(Regex("[0-9]+\\.[0-9]{1,2}")) -> {
+                    cleaned // keep as-is, it's already in correct format
+                }
+                // Pattern: just digits (e.g., "1500") - integer
+                cleaned.matches(Regex("[0-9]+")) -> {
+                    cleaned
+                }
+                else -> cleaned.replace(".", "").replace(",", ".") // fallback to old behavior
+            }
+            
+            return result.toDoubleOrNull()
         }
 
         // Percent parser: keep dot/comma as decimal separator (do not strip '.')
@@ -203,15 +230,23 @@ object OcrUtil {
                 // Prefer explicit VSK-upphæð lines and ignore numbers that belong to a percentage (e.g., 24.0%).
                 if (tax == null) {
                     val hasPercent = line.contains('%')
-                    if (l.contains("upph")) {
-                        // Take the last numeric token and ensure it isn't immediately part of a percentage
+                    
+                    // Highest priority: explicit "VSK upphæð" or "vsk-upphæð" lines
+                    if (l.matches(Regex(".*vsk[\\s-]*upph[aæ]ð.*"))) {
+                        val tokens = numRe.findAll(line).toList()
+                        val last = tokens.lastOrNull()?.value
+                        val ok = last != null && !Regex("\\Q$last\\E\\s*%$").containsMatchIn(line)
+                        if (ok) tax = parseNumber(last!!)
+                    }
+                    // Medium priority: lines that contain "vsk" and "upph" somewhere
+                    else if (tax == null && l.contains("upph")) {
                         val tokens = numRe.findAll(line).toList()
                         val last = tokens.lastOrNull()?.value
                         val ok = last != null && !Regex("\\Q$last\\E\\s*%$").containsMatchIn(line)
                         if (ok) tax = parseNumber(last!!)
                     }
                     // Fallback: if line has no percent sign, use its last number as tax
-                    if (tax == null && !hasPercent) {
+                    else if (tax == null && !hasPercent) {
                         numRe.findAll(line).map { it.value }.lastOrNull()?.let { tax = parseNumber(it) }
                     }
                 }
@@ -284,9 +319,33 @@ object OcrUtil {
                 .replace("kr", "", ignoreCase = true)
                 .replace("ISK", "", ignoreCase = true)
                 .replace(" ", "")
-                .replace(".", "")
-                .replace(",", ".")
-            cleaned.toDoubleOrNull()
+            
+            // Use the same improved logic as parseNumber above
+            val result = when {
+                // Pattern: digits.digits,digits (e.g., "1.234,50") - thousands with decimal
+                cleaned.matches(Regex("[0-9]{1,3}(?:\\.[0-9]{3})*,[0-9]{1,2}")) -> {
+                    cleaned.replace(".", "").replace(",", ".")
+                }
+                // Pattern: digits,digits (e.g., "1234,50") - simple decimal with comma
+                cleaned.matches(Regex("[0-9]+,[0-9]{1,2}")) -> {
+                    cleaned.replace(",", ".")
+                }
+                // Pattern: digits.digits where digits is exactly 3 (e.g., "31.656") - likely thousands
+                cleaned.matches(Regex("[0-9]{1,3}\\.[0-9]{3}")) -> {
+                    cleaned.replace(".", "")
+                }
+                // Pattern: digits.digit or digits.digits (small decimal, e.g., "5.0", "24.5") - likely decimal
+                cleaned.matches(Regex("[0-9]+\\.[0-9]{1,2}")) -> {
+                    cleaned // keep as-is, it's already in correct format
+                }
+                // Pattern: just digits (e.g., "1500") - integer
+                cleaned.matches(Regex("[0-9]+")) -> {
+                    cleaned
+                }
+                else -> cleaned.replace(".", "").replace(",", ".") // fallback to old behavior
+            }
+            
+            result.toDoubleOrNull()
         }
 
         // Try labeled total first
@@ -304,7 +363,6 @@ object OcrUtil {
         val amount = parseAmount(amountFromLabel) ?: maxNumber
 
         // VAT: explicit kr value
-        val vatText = Regex("""(?i)\b(vsk-?upph[aæ]ð|vsk|vat)\b[^0-9]*([0-9][0-9\., ]*)\s*(kr|isk)?""")
         // Prefer lines that explicitly state VSK upphæð and avoid capturing the percentage value after "VSK".
         val vatFromLines: Double? = run {
             val candidates = lines.filter { l -> l.lowercase().contains("vsk") && l.lowercase().contains("upph") }
