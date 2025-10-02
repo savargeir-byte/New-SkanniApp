@@ -22,16 +22,17 @@ if (keystorePropertiesFile.exists()) {
 android {
 	// Use a unique, publishable namespace (avoid com.example)
 	namespace = "io.github.saeargeir.skanniapp"
-	compileSdk = 34
+	compileSdk = 35
 	buildToolsVersion = "35.0.0"
 
 	defaultConfig {
 		// This is the Play Store package name
 		applicationId = "io.github.saeargeir.skanniapp"
 		minSdk = 24
-		targetSdk = 34
-	versionCode = 7
-	versionName = "1.0.7"
+		targetSdk = 35
+		// Bump for Play upload; must be strictly greater than previous
+		versionCode = 23
+		versionName = "1.0.23"
 		testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 	}
 

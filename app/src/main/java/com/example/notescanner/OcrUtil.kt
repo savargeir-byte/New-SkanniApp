@@ -179,7 +179,12 @@ object OcrUtil {
                 // After the percent, there are usually two numbers: Nettó (bigger) and VSK upphæð (smaller).
                 // We collect ALL numeric tokens after the percent and choose the smallest as the VAT amount.
                 val tail = if (afterIdx in 0..line.lastIndex) line.substring(afterIdx) else ""
-                val numsAfter = numRe.findAll(tail).mapNotNull { n -> parseNumber(n.value) }.toList()
+                var numsAfter = numRe.findAll(tail).mapNotNull { n -> parseNumber(n.value) }.toList()
+                // Some receipts break lines: the numbers come on the next line after the percent.
+                if (numsAfter.isEmpty() && idx + 1 < lines.size) {
+                    val nextLine = lines[idx + 1]
+                    numsAfter = numRe.findAll(nextLine).mapNotNull { n -> parseNumber(n.value) }.toList()
+                }
                 val chosenAmt = if (numsAfter.isNotEmpty()) {
                     // Prefer clearly smaller values (tax) over large nets on the same line
                     val maxOnTail = numsAfter.maxOrNull() ?: 0.0
@@ -314,7 +319,7 @@ object OcrUtil {
             } else null
         }
         // Fallback to a generic VSK capture but ignore numbers that are part of a percentage (e.g., 24.0%)
-        val vatTextGeneric = Regex("""(?i)\b(vsk|vat)\b[^0-9%]*([-]?[0-9][0-9\., ]*)(?!\s*%)\s*kr?""")
+        val vatTextGeneric = Regex("""(?i)\b(vsk|vat)\b[^0-9%]*([-]?[0-9][0-9\., ]*)(?!\s*%)\s*(kr|isk)?""")
             .find(normalized)?.groupValues?.getOrNull(2)
         val vat = vatFromLines ?: parseAmount(vatTextGeneric)
 
