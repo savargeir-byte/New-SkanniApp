@@ -12,6 +12,14 @@ on:
         options:
           - debug
           - release
+      publish_release:
+        description: 'Create GitHub Release and attach APK/AAB'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
   # Tag trigger for quick release builds (avoids colliding with other release workflows)
   push:
     tags:
@@ -107,6 +115,7 @@ jobs:
           echo "Found AAB: $AAB"
 
       - name: Rename files with version
+        id: rename
         run: |
           # Try to read versionName from Groovy or Kotlin DSL
           VERSION=""
@@ -119,6 +128,7 @@ jobs:
           if [ -z "$VERSION" ]; then
             VERSION="unknown"
           fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
           if [ -f "${{ steps.find_apk.outputs.apk_path }}" ]; then
             cp "${{ steps.find_apk.outputs.apk_path }}" "SkanniApp-v${VERSION}-${{ inputs.build_type }}.apk"
           fi
@@ -159,3 +169,19 @@ jobs:
           echo "1. Download APK file" >> $GITHUB_STEP_SUMMARY
           echo "2. Enable 'Unknown sources' in Android settings" >> $GITHUB_STEP_SUMMARY
           echo "3. Open the APK file to install" >> $GITHUB_STEP_SUMMARY
+
+      - name: Create GitHub Release and attach files (optional)
+        if: ${{ inputs.publish_release == 'true' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.rename.outputs.version }}
+          name: v${{ steps.rename.outputs.version }}
+          files: |
+            SkanniApp-*.apk
+            SkanniApp-*.aab
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
