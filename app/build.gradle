@@ -1,9 +1,7 @@
 import java.util.Properties
 
-plugins {
-	id 'com.android.application'
-	id 'org.jetbrains.kotlin.android'
-}
+apply plugin: 'com.android.application'
+apply plugin: 'org.jetbrains.kotlin.android'
 
 def keystorePropertiesFile = rootProject.file('keystore.properties')
 def keystoreProperties = new Properties()

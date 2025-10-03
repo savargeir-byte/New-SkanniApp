@@ -1,92 +1,72 @@
 package io.github.saeargeir.skanniapp.data
 
 import android.content.Context
-import android.content.SharedPreferences
 import io.github.saeargeir.skanniapp.model.InvoiceRecord
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 
 class InvoiceStore(private val context: Context) {
-    private val prefs: SharedPreferences = context.getSharedPreferences("invoices", Context.MODE_PRIVATE)
-    
-    fun save(record: InvoiceRecord) {
-        val existingJson = prefs.getString("records", "[]")
-        val array = JSONArray(existingJson)
-        
-        // Check if record with same ID exists and update it
-        var found = false
-        for (i in 0 until array.length()) {
-            val obj = array.getJSONObject(i)
-            if (obj.getString("id") == record.id) {
-                array.put(i, recordToJson(record))
-                found = true
-                break
-            }
-        }
-        
-        // If not found, add new record
-        if (!found) {
-            array.put(recordToJson(record))
-        }
-        
-        prefs.edit().putString("records", array.toString()).apply()
-    }
-    
+    private val file: File by lazy { File(context.filesDir, "invoices.json") }
+
     fun loadAll(): List<InvoiceRecord> {
-        val json = prefs.getString("records", "[]") ?: "[]"
-        val array = JSONArray(json)
-        val records = mutableListOf<InvoiceRecord>()
-        
-        for (i in 0 until array.length()) {
-            try {
-                val obj = array.getJSONObject(i)
-                records.add(jsonToRecord(obj))
-            } catch (e: Exception) {
-                // Skip invalid records
-            }
-        }
-        
-        return records.sortedByDescending { it.date }
-    }
-    
-    fun delete(id: String) {
-        val existingJson = prefs.getString("records", "[]")
-        val array = JSONArray(existingJson)
-        val newArray = JSONArray()
-        
-        for (i in 0 until array.length()) {
-            val obj = array.getJSONObject(i)
-            if (obj.getString("id") != id) {
-                newArray.put(obj)
-            }
-        }
-        
-        prefs.edit().putString("records", newArray.toString()).apply()
-    }
-    
-    private fun recordToJson(record: InvoiceRecord): JSONObject {
-        return JSONObject().apply {
-            put("id", record.id)
-            put("vendor", record.vendor)
-            put("amount", record.amount)
-            put("vat", record.vat)
-            put("date", record.date)
-            put("month", record.month)
-            put("invoiceNumber", record.invoiceNumber ?: "")
-            put("imagePath", record.imagePath)
+        if (!file.exists()) return emptyList()
+        return try {
+            val text = file.readText()
+            val arr = JSONArray(text)
+            (0 until arr.length()).map { i -> fromJson(arr.getJSONObject(i)) }
+        } catch (e: Exception) {
+            emptyList()
         }
     }
-    
-    private fun jsonToRecord(obj: JSONObject): InvoiceRecord {
-        return InvoiceRecord(
-            id = obj.getString("id"),
-            vendor = obj.getString("vendor"),
-            amount = obj.getDouble("amount"),
-            vat = obj.getDouble("vat"),
-            date = obj.getString("date"),
-            month = obj.getString("month"),
-            invoiceNumber = obj.optString("invoiceNumber").takeIf { it.isNotEmpty() },
-            imagePath = obj.getString("imagePath")
-        )
+
+    fun saveAll(list: List<InvoiceRecord>) {
+        val arr = JSONArray()
+        list.forEach { arr.put(toJson(it)) }
+        file.writeText(arr.toString())
     }
+
+    fun add(record: InvoiceRecord) {
+        val current = loadAll().toMutableList()
+        current.add(record)
+        saveAll(current)
+    }
+
+    fun deleteById(id: Long) {
+        val current = loadAll().toMutableList()
+        val newList = current.filterNot { it.id == id }
+        saveAll(newList)
+    }
+
+    fun update(record: InvoiceRecord) {
+        val current = loadAll().toMutableList()
+        val idx = current.indexOfFirst { it.id == record.id }
+        if (idx >= 0) {
+            current[idx] = record
+            saveAll(current)
+        }
+    }
+
+    private fun toJson(r: InvoiceRecord): JSONObject = JSONObject().apply {
+        put("id", r.id)
+        put("date", r.date)
+        put("monthKey", r.monthKey)
+        put("vendor", r.vendor)
+        put("amount", r.amount)
+        put("vat", r.vat)
+        put("imagePath", r.imagePath)
+        if (r.invoiceNumber != null) put("invoiceNumber", r.invoiceNumber)
+    }
+
+    private fun fromJson(o: JSONObject): InvoiceRecord = InvoiceRecord(
+        id = o.getLong("id"),
+        date = o.getString("date"),
+        monthKey = o.getString("monthKey"),
+        vendor = o.getString("vendor"),
+        amount = o.getDouble("amount"),
+        vat = o.getDouble("vat"),
+        imagePath = o.getString("imagePath"),
+        // org.json's optString(name, fallback) requires a non-null fallback; use empty string and map to null
+        invoiceNumber = o.optString("invoiceNumber", "").takeIf { it.isNotEmpty() }
+    )
 }

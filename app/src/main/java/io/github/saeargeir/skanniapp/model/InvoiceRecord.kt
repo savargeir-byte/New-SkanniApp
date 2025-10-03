@@ -1,12 +1,12 @@
 package io.github.saeargeir.skanniapp.model
 
 data class InvoiceRecord(
-    val id: String,
+    val id: Long,
+    val date: String,        // ISO yyyy-MM-dd
+    val monthKey: String,    // yyyy-MM
     val vendor: String,
     val amount: Double,
-    val vat: Double,
-    val date: String,
-    val month: String,
-    val invoiceNumber: String?,
-    val imagePath: String
+    val vat: Double,         // VAT amount (not percent)
+    val imagePath: String,   // absolute path in internal storage
+    val invoiceNumber: String? = null
 )

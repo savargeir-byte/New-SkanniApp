@@ -1,12 +1,6 @@
-package io.github.saeargeir.skanniapp.model
+package com.example.notescanner.deprecated
 
-data class InvoiceRecord(
-    val id: Long,
-    val date: String,        // ISO yyyy-MM-dd
-    val monthKey: String,    // yyyy-MM
-    val vendor: String,
-    val amount: Double,
-    val vat: Double,         // VAT amount (not percent)
-    val imagePath: String,   // absolute path in internal storage
-    val invoiceNumber: String? = null
-)
+// Deprecated placeholder. Real implementation moved to
+// io.github.saeargeir.skanniapp.model.InvoiceRecord
+
+// This file is intentionally left minimal to avoid duplicate declarations.
