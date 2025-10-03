@@ -172,7 +172,7 @@ class GoogleDriveService(private val context: Context) : CloudService {
                         id = file.id,
                         name = file.name,
                         mimeType = file.mimeType,
-                        size = file.size ?: 0L,
+                        size = (file.size as? Long) ?: 0L,
                         modifiedTime = file.modifiedTime?.toString() ?: ""
                     )
                 }
