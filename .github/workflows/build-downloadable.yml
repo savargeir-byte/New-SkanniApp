@@ -23,6 +23,9 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # Default to release for tag-triggered runs; use dispatch input when present
+      BUILD_TYPE: ${{ github.event_name == 'workflow_dispatch' && inputs.build_type || 'release' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -51,7 +54,7 @@ jobs:
 
       # Debug build (no signing needed)
       - name: Build Debug APK
-        if: inputs.build_type == 'debug'
+        if: ${{ env.BUILD_TYPE == 'debug' }}
         run: ./gradlew --no-daemon :app:assembleDebug --stacktrace
 
       # Release build (will use debug keystore if no signing secrets)
@@ -65,7 +68,7 @@ jobs:
           fi
 
       - name: Setup signing (if available)
-        if: inputs.build_type == 'release' && steps.check_secrets.outputs.has_keystore == 'true'
+        if: ${{ env.BUILD_TYPE == 'release' && steps.check_secrets.outputs.has_keystore == 'true' }}
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > upload-keystore.jks
           cat > keystore.properties << EOF
@@ -76,18 +79,18 @@ jobs:
           EOF
 
       - name: Build Release APK
-        if: inputs.build_type == 'release'
+        if: ${{ env.BUILD_TYPE == 'release' }}
         run: ./gradlew --no-daemon :app:assembleRelease --stacktrace
 
       - name: Build Release AAB
-        if: inputs.build_type == 'release'
+        if: ${{ env.BUILD_TYPE == 'release' }}
         run: ./gradlew --no-daemon :app:bundleRelease --stacktrace
 
       # Find and upload artifacts
       - name: Find APK files
         id: find_apk
         run: |
-          if [ "${{ inputs.build_type }}" = "debug" ]; then
+          if [ "${{ env.BUILD_TYPE }}" = "debug" ]; then
             APK=$(find app/build*/outputs/apk/debug -name "*.apk" -type f | head -n 1)
           else
             APK=$(find app/build*/outputs/apk/release -name "*.apk" -type f | head -n 1)
@@ -96,7 +99,7 @@ jobs:
           echo "Found APK: $APK"
 
       - name: Find AAB file
-        if: inputs.build_type == 'release'
+        if: ${{ env.BUILD_TYPE == 'release' }}
         id: find_aab
         run: |
           AAB=$(find app/build*/outputs/bundle/release -name "*.aab" -type f | head -n 1)
@@ -119,18 +122,18 @@ jobs:
           if [ -f "${{ steps.find_apk.outputs.apk_path }}" ]; then
             cp "${{ steps.find_apk.outputs.apk_path }}" "SkanniApp-v${VERSION}-${{ inputs.build_type }}.apk"
           fi
-          if [ "${{ inputs.build_type }}" = "release" ] && [ -f "${{ steps.find_aab.outputs.aab_path }}" ]; then
+          if [ "${{ env.BUILD_TYPE }}" = "release" ] && [ -f "${{ steps.find_aab.outputs.aab_path }}" ]; then
             cp "${{ steps.find_aab.outputs.aab_path }}" "SkanniApp-v${VERSION}-release.aab"
           fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SkanniApp-${{ inputs.build_type }}-apk
+          name: SkanniApp-${{ env.BUILD_TYPE }}-apk
           path: SkanniApp-*.apk
 
       - name: Upload AAB
-        if: inputs.build_type == 'release'
+        if: ${{ env.BUILD_TYPE == 'release' }}
         uses: actions/upload-artifact@v4
         with:
           name: SkanniApp-release-aab
@@ -145,7 +148,7 @@ jobs:
           echo "2. Click on this workflow run" >> $GITHUB_STEP_SUMMARY
           echo "3. Scroll down to **Artifacts**" >> $GITHUB_STEP_SUMMARY
           echo "4. Download:" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ inputs.build_type }}" = "debug" ]; then
+          if [ "${{ env.BUILD_TYPE }}" = "debug" ]; then
             echo "   - **SkanniApp-debug-apk** - Debug APK fyrir testing" >> $GITHUB_STEP_SUMMARY
           else
             echo "   - **SkanniApp-release-apk** - Release APK fyrir installation" >> $GITHUB_STEP_SUMMARY
