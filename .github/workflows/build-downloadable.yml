@@ -1,6 +1,7 @@
 name: Build APK & AAB (Quick Download)
 
 on:
+  # Manual trigger
   workflow_dispatch:
     inputs:
       build_type:
@@ -11,6 +12,10 @@ on:
         options:
           - debug
           - release
+  # Tag trigger for quick release builds (avoids colliding with other release workflows)
+  push:
+    tags:
+      - 'b*'
 
 permissions:
   contents: write
