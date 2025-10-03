@@ -107,6 +107,7 @@ jobs:
           echo "Found AAB: $AAB"
 
       - name: Rename files with version
+        id: rename_version
         run: |
           # Try to read versionName from Groovy or Kotlin DSL
           VERSION=""
@@ -119,8 +120,9 @@ jobs:
           if [ -z "$VERSION" ]; then
             VERSION="unknown"
           fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
           if [ -f "${{ steps.find_apk.outputs.apk_path }}" ]; then
-            cp "${{ steps.find_apk.outputs.apk_path }}" "SkanniApp-v${VERSION}-${{ inputs.build_type }}.apk"
+            cp "${{ steps.find_apk.outputs.apk_path }}" "SkanniApp-v${VERSION}-${{ env.BUILD_TYPE }}.apk"
           fi
           if [ "${{ env.BUILD_TYPE }}" = "release" ] && [ -f "${{ steps.find_aab.outputs.aab_path }}" ]; then
             cp "${{ steps.find_aab.outputs.aab_path }}" "SkanniApp-v${VERSION}-release.aab"
@@ -159,3 +161,15 @@ jobs:
           echo "1. Download APK file" >> $GITHUB_STEP_SUMMARY
           echo "2. Enable 'Unknown sources' in Android settings" >> $GITHUB_STEP_SUMMARY
           echo "3. Open the APK file to install" >> $GITHUB_STEP_SUMMARY
+      - name: Create GitHub Release (on b* tag)
+        if: ${{ startsWith(github.ref, 'refs/tags/b') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          name: SkanniApp ${{ github.ref_name }}
+          files: |
+            SkanniApp-*.apk
+            SkanniApp-*.aab
+          generate_release_notes: true
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
