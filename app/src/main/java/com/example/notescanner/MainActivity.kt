@@ -48,6 +48,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.clip
+import io.github.saeargeir.skanniapp.ui.theme.SkanniAppTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -84,19 +89,9 @@ class MainActivity : ComponentActivity() {
         cameraExecutor = Executors.newSingleThreadExecutor()
         try {
             setContent {
-                // Wrap in Material3 theme to ensure required CompositionLocals exist on all devices
-                // Provide a slightly boxier shape theme across the app
+                // Use our custom theme with Icelandic color palette
                 var darkMode by rememberSaveable { mutableStateOf(false) }
-                val lightColors = lightColorScheme()
-                val darkColors = darkColorScheme()
-                MaterialTheme(
-                    colorScheme = if (darkMode) darkColors else lightColors,
-                    shapes = Shapes(
-                        small = RoundedCornerShape(8.dp),
-                        medium = RoundedCornerShape(12.dp),
-                        large = RoundedCornerShape(16.dp)
-                    )
-                ) {
+                SkanniAppTheme(darkTheme = darkMode) {
                     Surface(modifier = Modifier.fillMaxSize()) {
                         NoteScannerApp(
                             darkTheme = darkMode,
@@ -368,17 +363,16 @@ fun NoteScannerApp(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Background gradient (Compose) to avoid XML Shape not supported by painterResource
-        // Equivalent to drawable/bg_invoice.xml with subtle transparency
+        // Modern gradient background using theme colors
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            Color(0x26FFFFFF), // ~15% alpha white
-                            Color(0x26F5F5F5),
-                            Color(0x26EFEFEF)
+                            MaterialTheme.colorScheme.background,
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
                         )
                     )
                 )
@@ -395,17 +389,46 @@ fun NoteScannerApp(
         // Optional: Add a watermark later using a Compose Canvas. Avoid painterResource here to prevent
         // crashes when a non-vector XML drawable is accidentally resolved on some devices.
 
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Enhanced header card
+            Card(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Simple hamburger button (dropdown menu)
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Text("☰", fontSize = 22.sp)
-                    }
+                Column(
+                    modifier = Modifier.padding(20.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            // Modern menu button with better styling
+                            IconButton(
+                                onClick = { menuExpanded = true },
+                                modifier = Modifier
+                                    .background(
+                                        MaterialTheme.colorScheme.primaryContainer,
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                    .size(48.dp)
+                            ) {
+                                Text(
+                                    "☰", 
+                                    fontSize = 20.sp,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
                     DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                         DropdownMenuItem(text = { Text("Senda CSV í tölvupósti") }, onClick = {
                             menuExpanded = false
@@ -469,66 +492,137 @@ fun NoteScannerApp(
                             onToggleTheme()
                         })
                     }
-                    Column {
-                        Text(
-                            "Velkomin í nótuskanna!",
-                            modifier = Modifier.padding(bottom = 4.dp),
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                        // Cloud connection status prominently displayed
-                        if (cloudFolderUri != null) {
-                            Text(
-                                "🌥️ Tengt við skýjamöppu",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary
+                            Column {
+                                Text(
+                                    "Skanni App",
+                                    style = MaterialTheme.typography.headlineMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                )
+                                Text(
+                                    "Íslenski reikningaskannarinn",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                // Cloud connection status with modern design
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    if (cloudFolderUri != null) {
+                                        Card(
+                                            colors = CardDefaults.cardColors(
+                                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                                            ),
+                                            modifier = Modifier.padding(0.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(8.dp, 4.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text("🌥️", fontSize = 14.sp)
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text(
+                                                    "Tengt við skýjamöppu",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                                )
+                                            }
+                                        }
+                                    } else {
+                                        Card(
+                                            colors = CardDefaults.cardColors(
+                                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                            ),
+                                            modifier = Modifier.padding(0.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(8.dp, 4.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text("📁", fontSize = 14.sp)
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text(
+                                                    "Engin skýjatenging",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        // Modern theme toggle button
+                        OutlinedButton(
+                            onClick = onToggleTheme,
+                            modifier = Modifier
+                                .height(48.dp)
+                                .clip(RoundedCornerShape(12.dp)),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                contentColor = MaterialTheme.colorScheme.primary
                             )
-                        } else {
+                        ) {
                             Text(
-                                "📁 Engin skýjatenging",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                if (darkTheme) "☀️ Ljóst" else "🌙 Dökkt",
+                                style = MaterialTheme.typography.labelLarge
                             )
                         }
                     }
                 }
-                // Theme toggle (quick)
-                OutlinedButton(onClick = onToggleTheme, modifier = Modifier.height(40.dp)) {
-                    Text(if (darkTheme) "Ljóst" else "Dökkt")
-                }
             }
 
-            // Cloud setup prompt when not connected
+            // Enhanced cloud setup prompt when not connected
             if (cloudFolderUri == null) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                        .clickable { pickFolderLauncher.launch(null) },
+                        .clickable { pickFolderLauncher.launch(null) }
+                        .shadow(4.dp, RoundedCornerShape(16.dp)),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer
-                    )
+                    ),
+                    shape = RoundedCornerShape(16.dp)
                 ) {
                     Column(
-                        modifier = Modifier.padding(16.dp)
+                        modifier = Modifier.padding(20.dp)
                     ) {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.Top
                         ) {
-                            Text(
-                                "🌥️",
-                                fontSize = 24.sp,
-                                modifier = Modifier.padding(end = 12.dp)
-                            )
-                            Column {
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.primary
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        "🌥️",
+                                        fontSize = 24.sp
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     "Tengja skýjamöppu",
-                                    style = MaterialTheme.typography.titleMedium,
+                                    style = MaterialTheme.typography.titleLarge.copy(
+                                        fontWeight = FontWeight.SemiBold
+                                    ),
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
+                                Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     "Vista myndir og Excel skrár í OneDrive, Google Drive eða aðrar skýjamöppur",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                                 )
                             }
                         }
@@ -536,26 +630,65 @@ fun NoteScannerApp(
                 }
             }
 
-            // Secondary navigation buttons
-            // (Primary scan button moved to the bottom of the screen)
-            Spacer(modifier = Modifier.size(4.dp))
-
-            Row(modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(onClick = {
-                    showOverview = true; showList = false; isCameraStarted = false
-                }, modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp),
+            // Enhanced navigation buttons with modern cards
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable {
+                            showOverview = true; showList = false; isCameraStarted = false
+                        }
+                        .shadow(2.dp, RoundedCornerShape(12.dp)),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
                     shape = RoundedCornerShape(12.dp)
-                ) { Text("Skoða yfirlit") }
-                Spacer(modifier = Modifier.size(8.dp))
-                OutlinedButton(onClick = {
-                    showList = true; showOverview = false; isCameraStarted = false
-                }, modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp),
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text("📊", fontSize = 24.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Yfirlit",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable {
+                            showList = true; showOverview = false; isCameraStarted = false
+                        }
+                        .shadow(2.dp, RoundedCornerShape(12.dp)),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
                     shape = RoundedCornerShape(12.dp)
-                ) { Text("Skoða nótur") }
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text("📄", fontSize = 24.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Nótur",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
             }
 
             if (selectedRecord != null) {
@@ -684,51 +817,75 @@ fun NoteScannerApp(
         }
         }
 
-        // Bottom primary scan button — only on the home screen (no lists/overview/detail)
-        if (!showList && !showOverview && selectedRecord == null) Button(
-            onClick = {
-                showList = false
-                showOverview = false
-                val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-                if (!granted) {
-                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                    return@Button
-                }
-
-                // Launch ML Kit Document Scanner instead of manual CameraX capture
-                val options = GmsDocumentScannerOptions.Builder()
-                    .setScannerMode(GmsDocumentScannerOptions.SCANNER_MODE_FULL)
-                    .setGalleryImportAllowed(true)
-                    .setPageLimit(1)
-                    .setResultFormats(
-                        GmsDocumentScannerOptions.RESULT_FORMAT_JPEG,
-                        GmsDocumentScannerOptions.RESULT_FORMAT_PDF
-                    )
-                    .build()
-                val scanner: GmsDocumentScanner = GmsDocumentScanning.getClient(options)
-                val act = activity
-                if (act != null) {
-                    scanner.getStartScanIntent(act)
-                        .addOnSuccessListener { intentSender: IntentSender ->
-                            val request = IntentSenderRequest.Builder(intentSender).build()
-                            scannerLauncher.launch(request)
+        // Enhanced main scan button — only on the home screen (no lists/overview/detail)
+        if (!showList && !showOverview && selectedRecord == null) {
+            Card(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 16.dp, vertical = 24.dp)
+                    .fillMaxWidth()
+                    .clickable {
+                        showList = false
+                        showOverview = false
+                        val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+                        if (!granted) {
+                            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                            return@clickable
                         }
-                        .addOnFailureListener { err ->
-                            Log.w("NoteScanner", "Document scanner failed to get intent, falling back to CameraX", err)
-                            // Fallback to CameraX preview flow
+
+                        // Launch ML Kit Document Scanner instead of manual CameraX capture
+                        val options = GmsDocumentScannerOptions.Builder()
+                            .setScannerMode(GmsDocumentScannerOptions.SCANNER_MODE_FULL)
+                            .setGalleryImportAllowed(true)
+                            .setPageLimit(1)
+                            .setResultFormats(
+                                GmsDocumentScannerOptions.RESULT_FORMAT_JPEG,
+                                GmsDocumentScannerOptions.RESULT_FORMAT_PDF
+                            )
+                            .build()
+                        val scanner: GmsDocumentScanner = GmsDocumentScanning.getClient(options)
+                        val act = activity
+                        if (act != null) {
+                            scanner.getStartScanIntent(act)
+                                .addOnSuccessListener { intentSender: IntentSender ->
+                                    val request = IntentSenderRequest.Builder(intentSender).build()
+                                    scannerLauncher.launch(request)
+                                }
+                                .addOnFailureListener { err ->
+                                    Log.w("NoteScanner", "Document scanner failed to get intent, falling back to CameraX", err)
+                                    // Fallback to CameraX preview flow
+                                    isCameraStarted = true
+                                }
+                        } else {
+                            // If no activity available, fallback
                             isCameraStarted = true
                         }
-                } else {
-                    // If no activity available, fallback
-                    isCameraStarted = true
+                    }
+                    .shadow(8.dp, RoundedCornerShape(16.dp)),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                ),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("📷", fontSize = 24.sp)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        "Skanna nótu",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
                 }
-            },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 40.dp)
-                .fillMaxWidth()
-                .height(56.dp)
-        ) { Text("Skanna nótu") }
+            }
+        }
 
         // Flash toggle overlay when in CameraX fallback
         if (isCameraStarted && cameraRef?.cameraInfo?.hasFlashUnit() == true) {

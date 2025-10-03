@@ -10,5 +10,32 @@
             "source": "PowerShell",
             "icon": "terminal-powershell"
         }
-    }
+    },
+    
+    // AI Workflow Settings
+    // GitHub Copilot settings
+    "github.copilot.enable": {
+        "*": true,
+        "yaml": false,
+        "plaintext": false
+    },
+    "github.copilot.inlineSuggest.enable": true,
+    "github.copilot.editor.enableAutoCompletions": true,
+    
+    // Continue settings
+    "continue.enableTabAutocomplete": false,
+    "continue.manuallyTriggerCompletion": false,
+    
+    // General AI settings
+    "editor.inlineSuggest.enabled": true,
+    "editor.quickSuggestions": {
+        "other": true,
+        "comments": false,
+        "strings": true
+    },
+    
+    // Workflow optimization
+    "editor.suggest.preview": true,
+    "editor.suggest.showSnippets": true,
+    "workbench.commandPalette.experimental.suggestCommands": true
 }
