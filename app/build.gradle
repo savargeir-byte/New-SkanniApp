@@ -88,6 +88,7 @@ android {
 	// Fix duplicate META-INF files from multiple dependencies
 	packagingOptions {
 		exclude 'META-INF/INDEX.LIST'
+		exclude 'META-INF/DEPENDENCIES'
 		exclude 'META-INF/*.SF'
 		exclude 'META-INF/*.DSA'
 		exclude 'META-INF/*.RSA'
