@@ -83,22 +83,27 @@ jobs:
             gradle-build-release-aab.log
 
       - name: List release outputs (diagnostics)
-        if: env.SIGNING_READY == 'true'
+        if: ${{ env.SIGNING_READY == 'true' }}
         run: |
+          echo "Listing app/build_android6/outputs/apk/release" && ls -la app/build_android6/outputs/apk/release || true
           echo "Listing app/build_android4/outputs/apk/release" && ls -la app/build_android4/outputs/apk/release || true
           echo "Listing app/build_android3/outputs/apk/release" && ls -la app/build_android3/outputs/apk/release || true
           echo "Listing app/build/outputs/apk/release" && ls -la app/build/outputs/apk/release || true
+          echo "Listing app/build_android6/outputs/bundle/release" && ls -la app/build_android6/outputs/bundle/release || true
           echo "Listing app/build_android4/outputs/bundle/release" && ls -la app/build_android4/outputs/bundle/release || true
           echo "Listing app/build_android4/outputs/native-debug-symbols/release" && ls -la app/build_android4/outputs/native-debug-symbols/release || true
           echo "Listing app/build_android3/outputs/bundle/release" && ls -la app/build_android3/outputs/bundle/release || true
           echo "Listing app/build/outputs/bundle/release" && ls -la app/build/outputs/bundle/release || true
 
       - name: Upload artifact (release APK/AAB)
-        if: env.SIGNING_READY == 'true'
+        if: ${{ env.SIGNING_READY == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: app-release-artifacts
           path: |
+            app/build_android6/outputs/apk/release/app-release.apk
+            app/build_android6/outputs/bundle/release/app-release.aab
+            app/build_android6/outputs/native-debug-symbols/release/native-debug-symbols.zip
             app/build_android4/outputs/apk/release/app-release.apk
             app/build_android4/outputs/bundle/release/app-release.aab
             app/build_android4/outputs/native-debug-symbols/release/native-debug-symbols.zip
@@ -109,37 +114,41 @@ jobs:
 
       # Fallback path: if signing secrets are missing, still produce a usable debug APK
       - name: Make Gradle executable (fallback)
-        if: env.SIGNING_READY != 'true'
+        if: ${{ env.SIGNING_READY != 'true' }}
         run: chmod +x gradlew
 
       - name: Build debug APK (fallback when not signed)
-        if: env.SIGNING_READY != 'true'
+        if: ${{ env.SIGNING_READY != 'true' }}
         run: |
           set -o pipefail
           ./gradlew :app:assembleDebug --stacktrace --warning-mode all --info --debug 2>&1 | tee gradle-build-debug-fallback.log
 
       - name: Upload Gradle logs (fallback)
-        if: always() && env.SIGNING_READY != 'true'
+        if: ${{ always() && env.SIGNING_READY != 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: gradle-logs-debug-fallback
           path: gradle-build-debug-fallback.log
 
       - name: Upload artifact (debug APK fallback)
-        if: env.SIGNING_READY != 'true'
+        if: ${{ env.SIGNING_READY != 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
           path: |
+            app/build_android6/outputs/apk/debug/app-debug.apk
             app/build_android4/outputs/apk/debug/app-debug.apk
             app/build_android3/outputs/apk/debug/app-debug.apk
             app/build/outputs/apk/debug/app-debug.apk
 
       - name: Create GitHub Release (on tag)
-        if: env.SIGNING_READY == 'true' && startsWith(github.ref, 'refs/tags/')
+        if: ${{ env.SIGNING_READY == 'true' && startsWith(github.ref, 'refs/tags/') }}
         uses: softprops/action-gh-release@v2
         with:
           files: |
+            app/build_android6/outputs/apk/release/app-release.apk
+            app/build_android6/outputs/bundle/release/app-release.aab
+            app/build_android6/outputs/native-debug-symbols/release/native-debug-symbols.zip
             app/build_android4/outputs/apk/release/app-release.apk
             app/build_android4/outputs/bundle/release/app-release.aab
             app/build_android4/outputs/native-debug-symbols/release/native-debug-symbols.zip
