@@ -130,7 +130,7 @@ jobs:
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           if [ -f "${{ steps.find_apk.outputs.apk_path }}" ]; then
-            cp "${{ steps.find_apk.outputs.apk_path }}" "SkanniApp-v${VERSION}-${{ inputs.build_type }}.apk"
+            cp "${{ steps.find_apk.outputs.apk_path }}" "SkanniApp-v${VERSION}-${{ env.BUILD_TYPE }}.apk"
           fi
           if [ "${{ env.BUILD_TYPE }}" = "release" ] && [ -f "${{ steps.find_aab.outputs.aab_path }}" ]; then
             cp "${{ steps.find_aab.outputs.aab_path }}" "SkanniApp-v${VERSION}-release.aab"
@@ -176,6 +176,22 @@ jobs:
         with:
           tag_name: v${{ steps.rename.outputs.version }}
           name: v${{ steps.rename.outputs.version }}
+          files: |
+            SkanniApp-*.apk
+            SkanniApp-*.aab
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Release from tag (b*)
+        if: ${{ startsWith(github.ref, 'refs/tags/b') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
           files: |
             SkanniApp-*.apk
             SkanniApp-*.aab
