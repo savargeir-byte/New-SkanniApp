@@ -52,6 +52,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.border
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.animation.core.*
+import kotlinx.coroutines.delay
 import io.github.saeargeir.skanniapp.ui.theme.SkanniAppTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.DropdownMenu
@@ -91,12 +95,21 @@ class MainActivity : ComponentActivity() {
             setContent {
                 // Use our custom theme with Icelandic color palette
                 var darkMode by rememberSaveable { mutableStateOf(false) }
+                var showSplash by rememberSaveable { mutableStateOf(true) }
+                
                 SkanniAppTheme(darkTheme = darkMode) {
                     Surface(modifier = Modifier.fillMaxSize()) {
-                        NoteScannerApp(
-                            darkTheme = darkMode,
-                            onToggleTheme = { darkMode = !darkMode }
-                        )
+                        if (showSplash) {
+                            SplashScreenComposable(
+                                darkTheme = darkMode,
+                                onSplashComplete = { showSplash = false }
+                            )
+                        } else {
+                            NoteScannerApp(
+                                darkTheme = darkMode,
+                                onToggleTheme = { darkMode = !darkMode }
+                            )
+                        }
                     }
                 }
             }
@@ -120,6 +133,102 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         cameraExecutor.shutdown()
+    }
+}
+
+@Composable
+fun SplashScreenComposable(
+    darkTheme: Boolean,
+    onSplashComplete: () -> Unit
+) {
+    var startAnimation by remember { mutableStateOf(false) }
+    
+    // Animation values
+    val scale by animateFloatAsState(
+        targetValue = if (startAnimation) 1.0f else 0.3f,
+        animationSpec = tween(
+            durationMillis = 1000,
+            easing = FastOutSlowInEasing
+        ),
+        label = "logo_scale"
+    )
+    
+    val alpha by animateFloatAsState(
+        targetValue = if (startAnimation) 1.0f else 0.0f,
+        animationSpec = tween(
+            durationMillis = 800,
+            easing = LinearOutSlowInEasing
+        ),
+        label = "logo_alpha"
+    )
+
+    // Start animation and finish splash after delay
+    LaunchedEffect(Unit) {
+        startAnimation = true
+        delay(2500) // Total splash duration
+        onSplashComplete()
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.primaryContainer,
+                        MaterialTheme.colorScheme.primary,
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                    ),
+                    radius = 1000f
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // Logo placeholder - using camera icon as logo
+            Card(
+                modifier = Modifier
+                    .size(120.dp)
+                    .scale(scale),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                shape = RoundedCornerShape(24.dp)
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "📷",
+                        fontSize = 48.sp,
+                        modifier = Modifier.alpha(alpha)
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            // App name with fade in
+            Text(
+                text = "Skanni App",
+                style = MaterialTheme.typography.headlineLarge.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = alpha),
+                modifier = Modifier.alpha(alpha)
+            )
+            
+            Text(
+                text = "Íslenski reikningaskannarinn",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = alpha * 0.8f),
+                modifier = Modifier.alpha(alpha)
+            )
+        }
     }
 }
 
@@ -377,15 +486,23 @@ fun NoteScannerApp(
                     )
                 )
         )
-        // Faint watermark image (user-provided) over the gradient but behind content
-        Image(
-            painter = painterResource(id = R.drawable.bg_watermark),
-            contentDescription = null,
+        // Enlarged logo watermark in background
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .graphicsLayer { alpha = 0.08f }, // very faint
-            contentScale = ContentScale.Crop
-        )
+                .padding(bottom = 100.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                "📷",
+                fontSize = 200.sp,
+                modifier = Modifier
+                    .graphicsLayer { 
+                        alpha = if (darkTheme) 0.02f else 0.05f // Very subtle
+                        rotationZ = -15f // Slight rotation for style
+                    }
+            )
+        }
         // Optional: Add a watermark later using a Compose Canvas. Avoid painterResource here to prevent
         // crashes when a non-vector XML drawable is accidentally resolved on some devices.
 
