@@ -78,14 +78,14 @@ fun CloudProviderSelector(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.warningContainer
+                            containerColor = MaterialTheme.colorScheme.errorContainer
                         )
                     ) {
                         Text(
                             "OneDrive tenging er í þróun. Notaðu Google Drive eða SAF í bili.",
                             modifier = Modifier.padding(12.dp),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onWarningContainer
+                            color = MaterialTheme.colorScheme.onErrorContainer
                         )
                     }
                 }
