@@ -105,12 +105,21 @@ jobs:
 
       - name: Rename files with version
         run: |
+          # Try to read versionName from Groovy or Kotlin DSL
+          VERSION=""
+          if [ -f app/build.gradle ]; then
+            VERSION=$(grep -E "versionName\\s+['\"]" app/build.gradle | head -n 1 | sed -E "s/.*versionName\\s+['\"]([^'\"]+)['\"].*/\\1/")
+          fi
+          if [ -z "$VERSION" ] && [ -f app/build.gradle.kts ]; then
+            VERSION=$(grep -E "versionName(\s*=|\s+)\s*\"" app/build.gradle.kts | head -n 1 | sed -E 's/.*versionName(\s*=|\s+)\s*"([^"]+)".*/\2/')
+          fi
+          if [ -z "$VERSION" ]; then
+            VERSION="unknown"
+          fi
           if [ -f "${{ steps.find_apk.outputs.apk_path }}" ]; then
-            VERSION=$(grep "versionName" app/build.gradle.kts | head -n 1 | sed 's/.*"\(.*\)".*/\1/')
             cp "${{ steps.find_apk.outputs.apk_path }}" "SkanniApp-v${VERSION}-${{ inputs.build_type }}.apk"
           fi
           if [ "${{ inputs.build_type }}" = "release" ] && [ -f "${{ steps.find_aab.outputs.aab_path }}" ]; then
-            VERSION=$(grep "versionName" app/build.gradle.kts | head -n 1 | sed 's/.*"\(.*\)".*/\1/')
             cp "${{ steps.find_aab.outputs.aab_path }}" "SkanniApp-v${VERSION}-release.aab"
           fi
 
