@@ -32,6 +32,9 @@ jobs:
 
       - name: Prepare Gradle
         uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-read-only: true
+          cache-disabled: false
 
       - name: Make Gradle executable
         run: chmod +x gradlew
