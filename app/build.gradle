@@ -85,6 +85,14 @@ android {
 	// Use a fresh build directory to avoid stale Windows file locks under app/build
 	setBuildDir 'build_android7'
 
+	// Fix duplicate META-INF files from multiple dependencies
+	packagingOptions {
+		exclude 'META-INF/INDEX.LIST'
+		exclude 'META-INF/*.SF'
+		exclude 'META-INF/*.DSA'
+		exclude 'META-INF/*.RSA'
+	}
+
 	// Package project image folder as assets so we can load logo.png at runtime
 	sourceSets {
 		main {
