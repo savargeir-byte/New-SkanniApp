@@ -47,21 +47,15 @@ jobs:
 
       - name: Verify APK/AAB exist
         run: |
-          echo "Listing app/build_android4/outputs/apk/release" && ls -la app/build_android4/outputs/apk/release || true
-          echo "Listing app/build_android3/outputs/apk/release" && ls -la app/build_android3/outputs/apk/release || true
-          echo "Listing app/build/outputs/apk/release" && ls -la app/build/outputs/apk/release || true
-          echo "Listing app/build_android4/outputs/bundle/release" && ls -la app/build_android4/outputs/bundle/release || true
-          echo "Listing app/build_android3/outputs/bundle/release" && ls -la app/build_android3/outputs/bundle/release || true
-          echo "Listing app/build/outputs/bundle/release" && ls -la app/build/outputs/bundle/release || true
+          for d in app/build*/outputs/apk/release app/build/outputs/apk/release; do echo "Listing $d" && ls -la "$d" || true; done
+          for d in app/build*/outputs/bundle/release app/build/outputs/bundle/release; do echo "Listing $d" && ls -la "$d" || true; done
 
       - name: Upload build artifacts (unsigned, for diagnostics)
         uses: actions/upload-artifact@v4
         with:
           name: unsigned-release-outputs
           path: |
-            app/build_android4/outputs/apk/release/**
-            app/build_android3/outputs/apk/release/**
+            app/build*/outputs/apk/release/**
             app/build/outputs/apk/release/**
-            app/build_android4/outputs/bundle/release/**
-            app/build_android3/outputs/bundle/release/**
+            app/build*/outputs/bundle/release/**
             app/build/outputs/bundle/release/**

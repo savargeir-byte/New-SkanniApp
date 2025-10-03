@@ -69,10 +69,8 @@ jobs:
       - name: List outputs
         if: steps.signing.outputs.ready == 'true'
         run: |
-          echo "Listing app/build_android4/outputs/bundle/release" && ls -la app/build_android4/outputs/bundle/release || true
-          echo "Listing app/build_android4/outputs/native-debug-symbols/release" && ls -la app/build_android4/outputs/native-debug-symbols/release || true
-          echo "Listing app/build_android3/outputs/bundle/release" && ls -la app/build_android3/outputs/bundle/release || true
-          echo "Listing app/build/outputs/bundle/release" && ls -la app/build/outputs/bundle/release || true
+          for d in app/build*/outputs/bundle/release app/build/outputs/bundle/release; do echo "Listing $d" && ls -la "$d" || true; done
+          for d in app/build*/outputs/native-debug-symbols/release; do echo "Listing $d" && ls -la "$d" || true; done
 
       - name: Upload AAB artifact
         if: steps.signing.outputs.ready == 'true'
@@ -80,9 +78,8 @@ jobs:
         with:
           name: app-release-aab
           path: |
-            app/build_android4/outputs/bundle/release/app-release.aab
-            app/build_android4/outputs/mapping/release/mapping.txt
-            app/build_android3/outputs/bundle/release/app-release.aab
+            app/build*/outputs/bundle/release/app-release.aab
+            app/build*/outputs/mapping/release/mapping.txt
             app/build/outputs/bundle/release/app-release.aab
 
       - name: Create GitHub Release with AAB
@@ -90,10 +87,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            app/build_android4/outputs/bundle/release/app-release.aab
-            app/build_android4/outputs/native-debug-symbols/release/native-debug-symbols.zip
-            app/build_android4/outputs/mapping/release/mapping.txt
-            app/build_android3/outputs/bundle/release/app-release.aab
+            app/build*/outputs/bundle/release/app-release.aab
+            app/build*/outputs/native-debug-symbols/release/native-debug-symbols.zip
+            app/build*/outputs/mapping/release/mapping.txt
             app/build/outputs/bundle/release/app-release.aab
           fail_on_unmatched_files: false
           generate_release_notes: true

@@ -38,16 +38,17 @@ jobs:
           sdkmanager --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Check signing secrets
+        id: check_signing
         run: |
           if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ] && [ -n "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" ] && [ -n "${{ secrets.ANDROID_KEY_ALIAS }}" ] && [ -n "${{ secrets.ANDROID_KEY_PASSWORD }}" ]; then
-            echo "SIGNING_READY=true" >> $GITHUB_ENV
+            echo "ready=true" >> $GITHUB_OUTPUT
           else
-            echo "SIGNING_READY=false" >> $GITHUB_ENV
+            echo "ready=false" >> $GITHUB_OUTPUT
             echo "Signing secrets not provided. Skipping release build.\nRequired: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Restore keystore from secret
-        if: env.SIGNING_READY == 'true'
+        if: steps.check_signing.outputs.ready == 'true'
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > notescanner-release.jks
           {
@@ -58,17 +59,17 @@ jobs:
           } > keystore.properties
 
       - name: Make Gradle executable
-        if: env.SIGNING_READY == 'true'
+        if: steps.check_signing.outputs.ready == 'true'
         run: chmod +x gradlew
 
       - name: Build release APK (signed)
-        if: env.SIGNING_READY == 'true'
+        if: steps.check_signing.outputs.ready == 'true'
         run: |
           set -o pipefail
           ./gradlew --no-daemon clean :app:assembleRelease --stacktrace --warning-mode all --info --debug 2>&1 | tee gradle-build-release-apk.log
 
       - name: Build release App Bundle (signed)
-        if: env.SIGNING_READY == 'true'
+        if: steps.check_signing.outputs.ready == 'true'
         run: |
           set -o pipefail
           ./gradlew --no-daemon :app:bundleRelease --stacktrace --warning-mode all --info --debug 2>&1 | tee gradle-build-release-aab.log
@@ -83,68 +84,59 @@ jobs:
             gradle-build-release-aab.log
 
       - name: List release outputs (diagnostics)
-        if: env.SIGNING_READY == 'true'
+        if: steps.check_signing.outputs.ready == 'true'
         run: |
-          echo "Listing app/build_android4/outputs/apk/release" && ls -la app/build_android4/outputs/apk/release || true
-          echo "Listing app/build_android3/outputs/apk/release" && ls -la app/build_android3/outputs/apk/release || true
-          echo "Listing app/build/outputs/apk/release" && ls -la app/build/outputs/apk/release || true
-          echo "Listing app/build_android4/outputs/bundle/release" && ls -la app/build_android4/outputs/bundle/release || true
-          echo "Listing app/build_android4/outputs/native-debug-symbols/release" && ls -la app/build_android4/outputs/native-debug-symbols/release || true
-          echo "Listing app/build_android3/outputs/bundle/release" && ls -la app/build_android3/outputs/bundle/release || true
-          echo "Listing app/build/outputs/bundle/release" && ls -la app/build/outputs/bundle/release || true
+          for d in app/build*/outputs/apk/release app/build/outputs/apk/release; do echo "Listing $d" && ls -la "$d" || true; done
+          for d in app/build*/outputs/bundle/release app/build/outputs/bundle/release; do echo "Listing $d" && ls -la "$d" || true; done
+          for d in app/build*/outputs/native-debug-symbols/release; do echo "Listing $d" && ls -la "$d" || true; done
 
       - name: Upload artifact (release APK/AAB)
-        if: env.SIGNING_READY == 'true'
+        if: steps.check_signing.outputs.ready == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: app-release-artifacts
           path: |
-            app/build_android4/outputs/apk/release/app-release.apk
-            app/build_android4/outputs/bundle/release/app-release.aab
-            app/build_android4/outputs/native-debug-symbols/release/native-debug-symbols.zip
-            app/build_android3/outputs/apk/release/app-release.apk
-            app/build_android3/outputs/bundle/release/app-release.aab
+            app/build*/outputs/apk/release/app-release.apk
+            app/build*/outputs/bundle/release/app-release.aab
+            app/build*/outputs/native-debug-symbols/release/native-debug-symbols.zip
             app/build/outputs/apk/release/app-release.apk
             app/build/outputs/bundle/release/app-release.aab
 
       # Fallback path: if signing secrets are missing, still produce a usable debug APK
       - name: Make Gradle executable (fallback)
-        if: env.SIGNING_READY != 'true'
+        if: steps.check_signing.outputs.ready != 'true'
         run: chmod +x gradlew
 
       - name: Build debug APK (fallback when not signed)
-        if: env.SIGNING_READY != 'true'
+        if: steps.check_signing.outputs.ready != 'true'
         run: |
           set -o pipefail
           ./gradlew :app:assembleDebug --stacktrace --warning-mode all --info --debug 2>&1 | tee gradle-build-debug-fallback.log
 
       - name: Upload Gradle logs (fallback)
-        if: always() && env.SIGNING_READY != 'true'
+        if: always() && steps.check_signing.outputs.ready != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: gradle-logs-debug-fallback
           path: gradle-build-debug-fallback.log
 
       - name: Upload artifact (debug APK fallback)
-        if: env.SIGNING_READY != 'true'
+        if: steps.check_signing.outputs.ready != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
           path: |
-            app/build_android4/outputs/apk/debug/app-debug.apk
-            app/build_android3/outputs/apk/debug/app-debug.apk
+            app/build*/outputs/apk/debug/app-debug.apk
             app/build/outputs/apk/debug/app-debug.apk
 
       - name: Create GitHub Release (on tag)
-        if: env.SIGNING_READY == 'true' && startsWith(github.ref, 'refs/tags/')
+        if: steps.check_signing.outputs.ready == 'true' && startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            app/build_android4/outputs/apk/release/app-release.apk
-            app/build_android4/outputs/bundle/release/app-release.aab
-            app/build_android4/outputs/native-debug-symbols/release/native-debug-symbols.zip
-            app/build_android3/outputs/apk/release/app-release.apk
-            app/build_android3/outputs/bundle/release/app-release.aab
+            app/build*/outputs/apk/release/app-release.apk
+            app/build*/outputs/bundle/release/app-release.aab
+            app/build*/outputs/native-debug-symbols/release/native-debug-symbols.zip
             app/build/outputs/apk/release/app-release.apk
             app/build/outputs/bundle/release/app-release.aab
           fail_on_unmatched_files: false
