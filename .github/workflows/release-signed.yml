@@ -37,6 +37,9 @@ jobs:
           yes | sdkmanager --licenses
           sdkmanager --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
+      - name: Ensure CA certificates are installed
+        run: sudo apt-get update && sudo apt-get install -y ca-certificates
+
       - name: Check signing secrets
         id: check_signing
         run: |

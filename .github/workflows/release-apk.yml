@@ -27,6 +27,9 @@ jobs:
           yes | sdkmanager --licenses
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
+      - name: Ensure CA certificates are installed
+        run: sudo apt-get update && sudo apt-get install -y ca-certificates
+
       - name: Setup Gradle cache
         uses: gradle/actions/setup-gradle@v4
 
