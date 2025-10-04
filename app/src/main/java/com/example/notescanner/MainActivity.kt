@@ -215,8 +215,8 @@ fun NoteScannerApp(
                 if (amount > 100.0 && (vat < 10.0 || vat > amount * 0.5)) {
                     // VSK seems wrong - use intelligent estimation
                     // For 24% VAT: if total is 39254, then net = 39254/1.24 = 31656, VSK = 39254-31656 = 7598
-                    val estimated24 = kotlin.math.round((amount - (amount / 1.24)) * 100) / 100  // 24% VAT, rounded
-                    val estimated11 = kotlin.math.round((amount - (amount / 1.11)) * 100) / 100  // 11% VAT, rounded
+                    val estimated24 = kotlin.math.round(amount - (amount / 1.24))  // 24% VAT, no decimals
+                    val estimated11 = kotlin.math.round(amount - (amount / 1.11))  // 11% VAT, no decimals
                     
                     // Use 24% as default for most business transactions
                     vat = estimated24
@@ -1121,7 +1121,7 @@ fun NoteDetailScreen(record: InvoiceRecord, onBack: () -> Unit) {
         if (amt > 100.0 && (originalVat < 10.0 || originalVat > amt * 0.5)) {
             // VSK seems wrong - use 24% estimation
             // For 24% VAT: if total is 39254, then net = 39254/1.24 = 31656, VSK = 39254-31656 = 7598
-            val estimated = kotlin.math.round((amt - (amt / 1.24)) * 100) / 100
+            val estimated = kotlin.math.round(amt - (amt / 1.24))  // No decimals
             Log.w("NoteDetailScreen", "Correcting obviously wrong VAT: $originalVat -> $estimated")
             estimated
         } else {
@@ -1214,11 +1214,11 @@ fun NoteDetailScreen(record: InvoiceRecord, onBack: () -> Unit) {
             Column {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("VSK 24%")
-                    Text(String.format("%.2f kr", r24))
+                    Text(String.format("%.0f kr", r24))  // No decimals
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("VSK 11%")
-                    Text(String.format("%.2f kr", r11))
+                    Text(String.format("%.0f kr", r11))  // No decimals
                 }
                 Spacer(Modifier.size(4.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {

@@ -262,8 +262,13 @@ object OcrUtil {
                 } else {
                     numRe.findAll(line).mapNotNull { n -> parseNumber(n.value) }.lastOrNull()
                 }
-                if (chosenAmt != null) {
+                // CRITICAL: Never use percentage values as VSK amounts
+                // Percentage should be 24.0 or 11.0, VSK amounts should be much larger (hundreds/thousands)
+                if (chosenAmt != null && chosenAmt > 100.0) {  // VSK amounts are typically > 100 kr
                     rateMap[rate] = (rateMap[rate] ?: 0.0) + chosenAmt
+                    Log.d("OcrUtil", "Added VSK amount: $chosenAmt kr for rate: $rate%")
+                } else {
+                    Log.w("OcrUtil", "Rejected suspicious VSK amount: $chosenAmt (too small, likely percentage)")
                 }
             }
 

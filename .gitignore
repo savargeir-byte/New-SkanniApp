@@ -13,9 +13,9 @@
 .externalNativeBuild
 .cxx
 local.properties
-keystore.properties
-notescanner-release.jks
-upload-keystore.jks
+# keystore.properties - removed to allow keystores in repo
+# notescanner-release.jks - removed to allow keystores in repo  
+# upload-keystore.jks - removed to allow keystores in repo
 upload-keystore.jks.b64
 app-release.aab
 
