@@ -25,9 +25,9 @@ android {
 		applicationId 'io.github.saeargeir.skanniapp'
 		minSdk 26
 		targetSdk 33
-		// Bump version for Play upload (must be monotonically increasing)
-		versionCode 30
-		versionName '1.0.30'
+		// Bump version for VSK calculation fixes (must be monotonically increasing)
+		versionCode 31
+		versionName '1.0.31'
 		testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
 	}
 
