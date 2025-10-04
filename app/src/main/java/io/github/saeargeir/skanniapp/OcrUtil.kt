@@ -2,6 +2,7 @@ package io.github.saeargeir.skanniapp
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
@@ -33,6 +34,8 @@ object OcrUtil {
     )
 
     fun extractVatAmounts(ocrText: String): VatExtraction {
+        Log.d("OcrUtil", "Starting VAT extraction from OCR text: $ocrText")
+        
         fun parseNumber(s: String): Double? {
             // Normalize whitespace and separators for Icelandic formatting
             val cleaned = s
@@ -80,11 +83,33 @@ object OcrUtil {
                 .replace(" ", "")
                 .replace(",", ".")
             val rate = cleaned.toDoubleOrNull()
-            // Only accept valid Icelandic VAT rates: 24% and 11%
-            return when (rate) {
-                24.0, 11.0 -> rate
-                else -> null // Reject invalid rates like 5.0%
+            Log.d("OcrUtil", "Parsing percentage: '$s' -> cleaned: '$cleaned' -> rate: $rate")
+            
+            // OCR Error correction for common misreads
+            val correctedRate = when (rate) {
+                // Common OCR errors: 24 -> 28, 21, 26, etc.
+                28.0, 21.0, 26.0, 23.0, 25.0 -> {
+                    Log.i("OcrUtil", "OCR correction: $rate -> 24.0 (likely misread of 24%)")
+                    24.0
+                }
+                // Common OCR errors: 11 -> 17, 1I, etc.
+                17.0, 71.0, 16.0, 12.0 -> {
+                    Log.i("OcrUtil", "OCR correction: $rate -> 11.0 (likely misread of 11%)")
+                    11.0
+                }
+                else -> rate
             }
+            
+            // Only accept valid Icelandic VAT rates: 24% and 11%
+            val result = when (correctedRate) {
+                24.0, 11.0 -> correctedRate
+                else -> {
+                    Log.w("OcrUtil", "Rejecting invalid VAT rate: $correctedRate (from '$s')")
+                    null // Reject invalid rates like 5.0%
+                }
+            }
+            Log.d("OcrUtil", "parsePercent result: $result")
+            return result
         }
         val lines = ocrText.lines().map { it.trim() }.filter { it.isNotEmpty() }
         val numPattern = "([0-9]{1,3}(?:[. ][0-9]{3})*(?:,[0-9]{1,2})?|[0-9]+(?:,[0-9]{1,2})?)"
@@ -208,10 +233,15 @@ object OcrUtil {
             // Only accept valid Icelandic VAT rates (24% and 11%)
             var hadPct = false
             pctRe.findAll(line).forEach { m ->
+                Log.d("OcrUtil", "Found percentage match: '${m.value}' in line: '$line'")
                 hadPct = true
                 val rate = parsePercent(m.groupValues[1])
                 // Skip if not a valid Icelandic VAT rate
-                if (rate == null) return@forEach
+                if (rate == null) {
+                    Log.w("OcrUtil", "Skipping invalid rate in line: '$line'")
+                    return@forEach
+                }
+                Log.d("OcrUtil", "Valid VAT rate found: $rate%")
                 // Try to bind the amount appearing after the percentage on the same line.
                 val afterIdx = m.range.last + 1
                 // Heuristic for receipts like: "VSK 24.0% 31.656 7.598"

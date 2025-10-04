@@ -209,7 +209,19 @@ fun NoteScannerApp(
                 // Use enhanced VAT extraction based on the OCR engine used
                 val vatExtract = HybridOcrUtil.extractVATFromHybridResult(hybridResult)
                 val amount = vatExtract.total ?: parsed.amount ?: 0.0
-                val vat = vatExtract.tax ?: parsed.vat ?: 0.0
+                var vat = vatExtract.tax ?: parsed.vat ?: 0.0
+                
+                // Intelligent VAT fallback calculation if OCR failed to extract correct VAT
+                if (amount > 100.0 && (vat < 10.0 || vat > amount * 0.5)) {
+                    // VSK seems wrong - use intelligent estimation
+                    val estimated24 = amount * 0.24 / 1.24  // 24% VAT
+                    val estimated11 = amount * 0.11 / 1.11  // 11% VAT
+                    
+                    // Use 24% as default for most business transactions
+                    vat = estimated24
+                    Log.w("MainActivity", "OCR VSK seems incorrect ($vat), using 24% estimation: $estimated24")
+                }
+                
                 val net = vatExtract.subtotal ?: (amount - vat)
 
                 val excelFile = File(context.filesDir, "reikningar.xlsx")
@@ -1100,7 +1112,22 @@ fun NoteDetailScreen(record: InvoiceRecord, onBack: () -> Unit) {
     var vendor by rememberSaveable(record.id) { mutableStateOf(record.vendor) }
     var date by rememberSaveable(record.id) { mutableStateOf(record.date) }
     var amount by rememberSaveable(record.id) { mutableStateOf(record.amount.toString()) }
-    var vat by rememberSaveable(record.id) { mutableStateOf(record.vat.toString()) }
+    
+    // Intelligent VAT correction for obviously wrong values
+    val correctedVat = remember(record.id) {
+        val originalVat = record.vat
+        val amt = record.amount
+        if (amt > 100.0 && (originalVat < 10.0 || originalVat > amt * 0.5)) {
+            // VSK seems wrong - use 24% estimation
+            val estimated = amt * 0.24 / 1.24
+            Log.w("NoteDetailScreen", "Correcting obviously wrong VAT: $originalVat -> $estimated")
+            estimated
+        } else {
+            originalVat
+        }
+    }
+    
+    var vat by rememberSaveable(record.id) { mutableStateOf(correctedVat.toString()) }
     var invoiceNumber by rememberSaveable(record.id) { mutableStateOf(record.invoiceNumber ?: "") }
     val bmp = remember(record.imagePath) { loadThumbnail(record.imagePath, 2048) }
 

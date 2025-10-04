@@ -26,8 +26,8 @@ android {
 		minSdk 26
 		targetSdk 33
 		// Bump version for Play upload (must be monotonically increasing)
-		versionCode 29
-		versionName '1.0.29'
+		versionCode 30
+		versionName '1.0.30'
 		testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
 	}
 
@@ -82,8 +82,8 @@ android {
 		kotlinCompilerExtensionVersion = '1.5.14'
 	}
 
-	// Use a clean build directory to avoid Windows file locks
-	setBuildDir 'build_ocr_clean_' + System.currentTimeMillis()
+	// Use a clean build directory for release build with language files
+	setBuildDir 'build_release_' + System.currentTimeMillis()
 
 	// Fix duplicate META-INF files from multiple dependencies
 	packagingOptions {
@@ -104,6 +104,9 @@ android {
 				// Exclude large Tesseract language files from debug APK
 				exclude '**/*.traineddata'
 			}
+		}
+		release {
+			// Include all assets including Tesseract language files for release builds
 		}
 	}
 }
