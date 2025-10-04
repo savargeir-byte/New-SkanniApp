@@ -46,6 +46,8 @@ object OcrUtil {
                 .replace(" isk", "")
                 .replace(" ", "")
             
+            Log.d("OcrUtil", "parseNumber: input='$s' -> cleaned='$cleaned'")
+            
             // Handle Icelandic number formatting:
             // - Thousands separated by dots: 31.656
             // - Decimals separated by commas: 1.234,50
@@ -53,28 +55,42 @@ object OcrUtil {
             val result = when {
                 // Pattern: digits.digits,digits (e.g., "1.234,50") - thousands with decimal
                 cleaned.matches(Regex("[0-9]{1,3}(?:\\.[0-9]{3})*,[0-9]{1,2}")) -> {
-                    cleaned.replace(".", "").replace(",", ".")
+                    val processed = cleaned.replace(".", "").replace(",", ".")
+                    Log.d("OcrUtil", "parseNumber: thousands+decimal pattern -> '$processed'")
+                    processed
                 }
                 // Pattern: digits,digits (e.g., "1234,50") - simple decimal with comma
                 cleaned.matches(Regex("[0-9]+,[0-9]{1,2}")) -> {
-                    cleaned.replace(",", ".")
+                    val processed = cleaned.replace(",", ".")
+                    Log.d("OcrUtil", "parseNumber: simple decimal pattern -> '$processed'")
+                    processed
                 }
                 // Pattern: digits.digits where digits is exactly 3 (e.g., "31.656") - likely thousands
                 cleaned.matches(Regex("[0-9]{1,3}\\.[0-9]{3}")) -> {
-                    cleaned.replace(".", "")
+                    val processed = cleaned.replace(".", "")
+                    Log.d("OcrUtil", "parseNumber: thousands pattern -> '$processed'")
+                    processed
                 }
                 // Pattern: digits.digit or digits.digits (small decimal, e.g., "5.0", "24.5") - likely decimal
                 cleaned.matches(Regex("[0-9]+\\.[0-9]{1,2}")) -> {
+                    Log.d("OcrUtil", "parseNumber: small decimal pattern -> '$cleaned'")
                     cleaned // keep as-is, it's already in correct format
                 }
                 // Pattern: just digits (e.g., "1500") - integer
                 cleaned.matches(Regex("[0-9]+")) -> {
+                    Log.d("OcrUtil", "parseNumber: integer pattern -> '$cleaned'")
                     cleaned
                 }
-                else -> cleaned.replace(".", "").replace(",", ".") // fallback to old behavior
+                else -> {
+                    val processed = cleaned.replace(".", "").replace(",", ".")
+                    Log.d("OcrUtil", "parseNumber: fallback pattern -> '$processed'")
+                    processed // fallback to old behavior
+                }
             }
             
-            return result.toDoubleOrNull()
+            val finalResult = result.toDoubleOrNull()
+            Log.d("OcrUtil", "parseNumber: final result = $finalResult")
+            return finalResult
         }
 
         fun parsePercent(s: String): Double? {
@@ -274,9 +290,9 @@ object OcrUtil {
                 // Percentage should be 24.0 or 11.0, VSK amounts should be much larger (hundreds/thousands)
                 if (chosenAmt != null && chosenAmt > 100.0) {  // VSK amounts are typically > 100 kr
                     rateMap[rate] = (rateMap[rate] ?: 0.0) + chosenAmt
-                    Log.d("OcrUtil", "Added VSK amount: $chosenAmt kr for rate: $rate%")
+                    Log.d("OcrUtil", "Added VSK amount: $chosenAmt kr for rate: $rate% from line: '$line'")
                 } else {
-                    Log.w("OcrUtil", "Rejected suspicious VSK amount: $chosenAmt (too small, likely percentage)")
+                    Log.w("OcrUtil", "Rejected suspicious VSK amount: $chosenAmt (too small, likely percentage) from line: '$line'")
                 }
             }
 
@@ -342,6 +358,9 @@ object OcrUtil {
             subtotal != null && tax != null && total == null -> total = subtotal!! + tax!!
         }
 
+        Log.d("OcrUtil", "Final VAT extraction result - subtotal: $subtotal, tax: $tax, total: $total")
+        Log.d("OcrUtil", "VAT rates map: $validRates")
+        
         return VatExtraction(subtotal, tax, total, validRates)
     }
 
