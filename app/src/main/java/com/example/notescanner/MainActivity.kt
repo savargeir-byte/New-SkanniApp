@@ -214,8 +214,9 @@ fun NoteScannerApp(
                 // Intelligent VAT fallback calculation if OCR failed to extract correct VAT
                 if (amount > 100.0 && (vat < 10.0 || vat > amount * 0.5)) {
                     // VSK seems wrong - use intelligent estimation
-                    val estimated24 = amount * 0.24 / 1.24  // 24% VAT
-                    val estimated11 = amount * 0.11 / 1.11  // 11% VAT
+                    // For 24% VAT: if total is 39254, then net = 39254/1.24 = 31656, VSK = 39254-31656 = 7598
+                    val estimated24 = kotlin.math.round((amount - (amount / 1.24)) * 100) / 100  // 24% VAT, rounded
+                    val estimated11 = kotlin.math.round((amount - (amount / 1.11)) * 100) / 100  // 11% VAT, rounded
                     
                     // Use 24% as default for most business transactions
                     vat = estimated24
@@ -1119,7 +1120,8 @@ fun NoteDetailScreen(record: InvoiceRecord, onBack: () -> Unit) {
         val amt = record.amount
         if (amt > 100.0 && (originalVat < 10.0 || originalVat > amt * 0.5)) {
             // VSK seems wrong - use 24% estimation
-            val estimated = amt * 0.24 / 1.24
+            // For 24% VAT: if total is 39254, then net = 39254/1.24 = 31656, VSK = 39254-31656 = 7598
+            val estimated = kotlin.math.round((amt - (amt / 1.24)) * 100) / 100
             Log.w("NoteDetailScreen", "Correcting obviously wrong VAT: $originalVat -> $estimated")
             estimated
         } else {
