@@ -242,20 +242,28 @@ object OcrUtil {
                     return@forEach
                 }
                 Log.d("OcrUtil", "Valid VAT rate found: $rate%")
+                
+                // For VSK-upphæð lines, prioritize finding the actual tax amount
+                // Look for patterns like "VSK-upphæð 24%" followed by amount
+                val isVskUpphLine = l.contains("vsk") && l.contains("upph")
+                
                 // Try to bind the amount appearing after the percentage on the same line.
                 val afterIdx = m.range.last + 1
-                // Heuristic for receipts like: "VSK 24.0% 31.656 7.598"
-                // After the percent, there are usually two numbers: Nettó (bigger) and VSK upphæð (smaller).
-                // We collect ALL numeric tokens after the percent and choose the smallest as the VAT amount.
                 val tail = if (afterIdx in 0..line.lastIndex) line.substring(afterIdx) else ""
                 var numsAfter = numRe.findAll(tail).mapNotNull { n -> parseNumber(n.value) }.toList()
+                
                 // Some receipts break lines: the numbers come on the next line after the percent.
                 if (numsAfter.isEmpty() && idx + 1 < lines.size) {
                     val nextLine = lines[idx + 1]
                     numsAfter = numRe.findAll(nextLine).mapNotNull { n -> parseNumber(n.value) }.toList()
                 }
-                val chosenAmt = if (numsAfter.isNotEmpty()) {
-                    // Prefer clearly smaller values (tax) over large nets on the same line
+                
+                val chosenAmt = if (isVskUpphLine) {
+                    // For VSK-upphæð lines, choose the LARGEST number (the tax amount)
+                    // not the smallest (which might be percentage rate)
+                    numsAfter.filter { it > 50.0 }.maxOrNull() ?: numsAfter.maxOrNull()
+                } else if (numsAfter.isNotEmpty()) {
+                    // For other lines, use original logic (prefer smaller values as tax)
                     val maxOnTail = numsAfter.maxOrNull() ?: 0.0
                     val plausibleTax = numsAfter.filter { it > 0 && (maxOnTail == 0.0 || it <= maxOnTail * 0.6) }
                     (plausibleTax.minOrNull() ?: numsAfter.minOrNull())
@@ -281,20 +289,37 @@ object OcrUtil {
                     // Highest priority: explicit "VSK upphæð" or "vsk-upphæð" lines
                     if (l.matches(Regex(".*vsk[\\s-]*upph[aæ]ð.*"))) {
                         val tokens = numRe.findAll(line).toList()
+                        // For VSK-upphæð lines, use the LARGEST number (the actual tax amount)
+                        // not the percentage rate which would be small (24, 11)
+                        val numbers = tokens.mapNotNull { parseNumber(it.value) }
+                        val candidate = numbers.filter { it > 50.0 }.maxOrNull() ?: numbers.lastOrNull()
                         val last = tokens.lastOrNull()?.value
                         val ok = last != null && !Regex("\\Q$last\\E\\s*%$").containsMatchIn(line)
-                        if (ok) tax = parseNumber(last!!)
+                        if (ok && candidate != null) {
+                            tax = candidate
+                            Log.d("OcrUtil", "Found VSK-upphæð: $candidate from line: '$line'")
+                        }
                     }
                     // Medium priority: lines that contain "vsk" and "upph" somewhere
                     else if (tax == null && l.contains("upph")) {
                         val tokens = numRe.findAll(line).toList()
+                        val numbers = tokens.mapNotNull { parseNumber(it.value) }
+                        val candidate = numbers.filter { it > 50.0 }.maxOrNull() ?: numbers.lastOrNull()
                         val last = tokens.lastOrNull()?.value
                         val ok = last != null && !Regex("\\Q$last\\E\\s*%$").containsMatchIn(line)
-                        if (ok) tax = parseNumber(last!!)
+                        if (ok && candidate != null) {
+                            tax = candidate
+                            Log.d("OcrUtil", "Found VSK upphæð: $candidate from line: '$line'")
+                        }
                     }
                     // Fallback: if line has no percent sign, use its last number as tax
                     else if (tax == null && !hasPercent) {
-                        numRe.findAll(line).map { it.value }.lastOrNull()?.let { tax = parseNumber(it) }
+                        val numbers = numRe.findAll(line).mapNotNull { parseNumber(it.value) }.toList()
+                        val candidate = numbers.filter { it > 50.0 }.maxOrNull() ?: numbers.lastOrNull()
+                        if (candidate != null) {
+                            tax = candidate
+                            Log.d("OcrUtil", "Found VSK fallback: $candidate from line: '$line'")
+                        }
                     }
                 }
             }
