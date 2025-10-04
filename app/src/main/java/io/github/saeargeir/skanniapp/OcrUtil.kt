@@ -74,13 +74,17 @@ object OcrUtil {
             return result.toDoubleOrNull()
         }
 
-        // Percent parser: keep dot/comma as decimal separator (do not strip '.')
         fun parsePercent(s: String): Double? {
             val cleaned = s.trim()
                 .replace("\u00A0", "")
                 .replace(" ", "")
                 .replace(",", ".")
-            return cleaned.toDoubleOrNull()
+            val rate = cleaned.toDoubleOrNull()
+            // Only accept valid Icelandic VAT rates: 24% and 11%
+            return when (rate) {
+                24.0, 11.0 -> rate
+                else -> null // Reject invalid rates like 5.0%
+            }
         }
         val lines = ocrText.lines().map { it.trim() }.filter { it.isNotEmpty() }
         val numPattern = "([0-9]{1,3}(?:[. ][0-9]{3})*(?:,[0-9]{1,2})?|[0-9]+(?:,[0-9]{1,2})?)"
@@ -128,6 +132,11 @@ object OcrUtil {
                         tableEnd = i
                         val rateStr = (m4?:m3)!!.groupValues[1]
                         val rate = parsePercent(rateStr)
+                        // Skip if not a valid Icelandic VAT rate
+                        if (rate == null) {
+                            i++
+                            continue
+                        }
                         var vTax: Double? = null
                         var vNet: Double? = null
                         var vSum: Double? = null
@@ -196,10 +205,13 @@ object OcrUtil {
             }
 
             // Collect per-rate VSK amounts. Support lines both with and without explicit "vsk" text.
+            // Only accept valid Icelandic VAT rates (24% and 11%)
             var hadPct = false
             pctRe.findAll(line).forEach { m ->
                 hadPct = true
-                val rate = parsePercent(m.groupValues[1]) ?: return@forEach
+                val rate = parsePercent(m.groupValues[1])
+                // Skip if not a valid Icelandic VAT rate
+                if (rate == null) return@forEach
                 // Try to bind the amount appearing after the percentage on the same line.
                 val afterIdx = m.range.last + 1
                 // Heuristic for receipts like: "VSK 24.0% 31.656 7.598"
@@ -253,13 +265,16 @@ object OcrUtil {
             }
         }
 
+        // Remove any invalid VAT rates that might have been added
+        val validRates = rateMap.filterKeys { it == 24.0 || it == 11.0 }.toMutableMap()
+        
         // If individual rate amounts were found but total tax was not, derive it as the sum.
-        if (tax == null && rateMap.isNotEmpty()) {
-            tax = rateMap.values.sum()
+        if (tax == null && validRates.isNotEmpty()) {
+            tax = validRates.values.sum()
         }
 
         // Ensure we always include the common Icelandic VAT rates 24% and 11% in the map.
-        listOf(24.0, 11.0).forEach { r -> if (!rateMap.containsKey(r)) rateMap[r] = 0.0 }
+        listOf(24.0, 11.0).forEach { r -> if (!validRates.containsKey(r)) validRates[r] = 0.0 }
 
         when {
             subtotal != null && total != null && tax == null -> tax = (total!! - subtotal!!).let { if (it >= -0.01) it else null }
@@ -267,7 +282,7 @@ object OcrUtil {
             subtotal != null && tax != null && total == null -> total = subtotal!! + tax!!
         }
 
-        return VatExtraction(subtotal, tax, total, rateMap)
+        return VatExtraction(subtotal, tax, total, validRates)
     }
 
     data class ParsedInvoice(
