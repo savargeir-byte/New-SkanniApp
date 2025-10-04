@@ -64,6 +64,7 @@ import android.provider.DocumentsContract
 import androidx.documentfile.provider.DocumentFile
 import io.github.saeargeir.skanniapp.data.InvoiceStore
 import io.github.saeargeir.skanniapp.model.InvoiceRecord
+import io.github.saeargeir.skanniapp.ocr.HybridOcrUtil
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.text.SimpleDateFormat
@@ -196,13 +197,17 @@ fun NoteScannerApp(
                     Log.w("CloudSync", "Failed to upload image to cloud", e)
                 }
             }
-            // OCR and persist
-            OcrUtil.recognizeTextFromImage(context, destFile) { text ->
-                ocrResult = text
-                val parsed = OcrUtil.parse(text)
-                    val vendor = parsed.vendor ?: text.lines().firstOrNull()?.take(64) ?: "Óþekkt"
-                    val invNo = parsed.invoiceNumber
-                val vatExtract = OcrUtil.extractVatAmounts(text)
+            // Enhanced OCR with hybrid Tesseract + ML Kit for better Icelandic recognition
+            HybridOcrUtil.recognizeTextHybrid(context, destFile, HybridOcrUtil.OcrEngine.AUTO) { hybridResult ->
+                ocrResult = hybridResult.text
+                Log.d("OCR", "Hybrid OCR completed with ${hybridResult.engine} (confidence: ${hybridResult.confidence})")
+                
+                val parsed = OcrUtil.parse(hybridResult.text)
+                val vendor = parsed.vendor ?: hybridResult.text.lines().firstOrNull()?.take(64) ?: "Óþekkt"
+                val invNo = parsed.invoiceNumber
+                
+                // Use enhanced VAT extraction based on the OCR engine used
+                val vatExtract = HybridOcrUtil.extractVATFromHybridResult(hybridResult)
                 val amount = vatExtract.total ?: parsed.amount ?: 0.0
                 val vat = vatExtract.tax ?: parsed.vat ?: 0.0
                 val net = vatExtract.subtotal ?: (amount - vat)
@@ -1103,15 +1108,16 @@ fun NoteDetailScreen(record: InvoiceRecord, onBack: () -> Unit) {
     var vatExtraction by rememberSaveable(record.id) { mutableStateOf<OcrUtil.VatExtraction?>(null) }
     var vatLoading by rememberSaveable(record.id) { mutableStateOf(false) }
     LaunchedEffect(record.id) {
-        // Kick off OCR once when opening detail
+        // Kick off enhanced OCR once when opening detail
         if (!vatLoading && vatExtraction == null) {
             vatLoading = true
             try {
                 val f = File(record.imagePath)
-                OcrUtil.recognizeTextFromImage(context, f) { text ->
-                    val ext = OcrUtil.extractVatAmounts(text)
+                HybridOcrUtil.recognizeTextHybrid(context, f, HybridOcrUtil.OcrEngine.AUTO) { hybridResult ->
+                    val ext = HybridOcrUtil.extractVATFromHybridResult(hybridResult)
                     vatExtraction = ext
                     vatLoading = false
+                    Log.d("DetailOCR", "VAT extraction completed with ${hybridResult.engine}")
                 }
             } catch (t: Throwable) {
                 vatLoading = false

@@ -26,8 +26,8 @@ android {
 		minSdk 26
 		targetSdk 33
 		// Bump version for Play upload (must be monotonically increasing)
-		versionCode 28
-		versionName '1.0.28'
+		versionCode 29
+		versionName '1.0.29'
 		testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
 	}
 
@@ -82,8 +82,8 @@ android {
 		kotlinCompilerExtensionVersion = '1.5.14'
 	}
 
-	// Use a fresh build directory to avoid stale Windows file locks under app/build
-	setBuildDir 'build_android7'
+	// Use a clean build directory to avoid Windows file locks
+	setBuildDir 'build_ocr_clean_' + System.currentTimeMillis()
 
 	// Fix duplicate META-INF files from multiple dependencies
 	packagingOptions {
@@ -98,6 +98,12 @@ android {
 	sourceSets {
 		main {
 			assets.srcDirs += ['image']
+		}
+		debug {
+			assets {
+				// Exclude large Tesseract language files from debug APK
+				exclude '**/*.traineddata'
+			}
 		}
 	}
 }
@@ -125,6 +131,9 @@ dependencies {
 	implementation 'com.google.android.gms:play-services-mlkit-text-recognition:19.0.1'
 	// ML Kit Document Scanner via Play services (uses Google Play on device)
 	implementation 'com.google.android.gms:play-services-mlkit-document-scanner:16.0.0-beta1'
+	
+	// Tesseract OCR for better Icelandic text recognition
+	implementation 'com.rmtheis:tess-two:9.1.0'
 
 	// Cloud service dependencies
 	implementation 'com.google.android.gms:play-services-auth:21.2.0'
