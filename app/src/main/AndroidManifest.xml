@@ -3,6 +3,9 @@
 
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    
+    <!-- Required for apps targeting Android 13+ (API 33+) -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
     <!-- Privacy policy: https://saeargeir.github.io/SkanniApp/privacy-policy.html -->
 
     <application
@@ -33,6 +36,10 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <!-- Declare that this app does not collect or use advertising ID -->
+        <meta-data
+            android:name="com.google.android.gms.ads.DELAY_APP_MEASUREMENT_INIT"
+            android:value="true" />
         
     </application>
 

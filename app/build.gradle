@@ -24,10 +24,10 @@ android {
 	defaultConfig {
 		applicationId 'io.github.saeargeir.skanniapp'
 		minSdk 26
-		targetSdk 35
+		targetSdk 33
 		// Bump version for Play upload (must be monotonically increasing)
-		versionCode 25
-		versionName '1.0.25'
+		versionCode 26
+		versionName '1.0.26'
 		testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
 	}
 
