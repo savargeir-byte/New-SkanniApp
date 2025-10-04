@@ -1,5 +1,8 @@
-/build
-/build_android
+/build/
+/build_*/
+/build_android*/
 build_android3/
 build_android4/
 outputs/
+intermediates/
+generated/

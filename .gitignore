@@ -24,7 +24,22 @@ app-release.aab
 scripts/*.local.*
 
 # Android app build outputs (custom build dirs)
+# Do NOT commit build artifacts from Gradle builds
+app/build/
+app/build_*/
 app/build_android*/
 app/build_android3/
 app/build_android4/
-app/outputs/
+app/build_release_*/
+app/build_ocr_*/
+app/**/intermediates/
+app/**/generated/
+app/**/outputs/
+
+# Local release artifact bundles created for convenience
+release_artifacts_*/
+
+# Gradle logs
+gradle-build*.log
+*.aab
+*.apk
