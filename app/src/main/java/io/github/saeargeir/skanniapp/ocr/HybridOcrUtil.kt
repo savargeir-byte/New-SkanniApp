@@ -230,6 +230,10 @@ object HybridOcrUtil {
      * Enhanced VAT extraction using the selected OCR result
      */
     fun extractVATFromHybridResult(result: HybridOcrResult): OcrUtil.VatExtraction {
+        Log.i(TAG, "=== HYBRID VSK EXTRACTION START ===")
+        Log.i(TAG, "Selected engine: ${result.engine}")
+        Log.i(TAG, "Text length: ${result.text.length}")
+        
         return when (result.engine) {
             OcrEngine.TESSERACT -> {
                 Log.d(TAG, "Using Tesseract-optimized VAT extraction")
@@ -240,12 +244,15 @@ object HybridOcrUtil {
                 OcrUtil.extractVatAmounts(result.text)
             }
             OcrEngine.AUTO -> {
+                Log.d(TAG, "Using AUTO mode - trying both engines")
                 // Try both and pick better result
                 val tesseractVAT = if (result.tesseractResult != null) {
+                    Log.d(TAG, "Extracting VAT from Tesseract result")
                     TesseractOcrUtil.extractIcelandicVAT(result.tesseractResult)
                 } else null
                 
                 val mlKitVAT = if (result.mlKitResult != null) {
+                    Log.d(TAG, "Extracting VAT from ML Kit result")
                     OcrUtil.extractVatAmounts(result.mlKitResult)
                 } else null
                 

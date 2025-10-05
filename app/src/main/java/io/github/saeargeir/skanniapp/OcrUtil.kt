@@ -34,7 +34,14 @@ object OcrUtil {
     )
 
     fun extractVatAmounts(ocrText: String): VatExtraction {
-        Log.d("OcrUtil", "Starting VAT extraction from OCR text: $ocrText")
+        Log.i("OcrUtil", "=== STARTING VSK EXTRACTION ===")
+        Log.i("OcrUtil", "OCR text length: ${ocrText.length}")
+        Log.i("OcrUtil", "OCR text preview: ${ocrText.take(200)}")
+        Log.i("OcrUtil", "Contains 'vsk': ${ocrText.lowercase().contains("vsk")}")
+        Log.i("OcrUtil", "Contains 'VSK': ${ocrText.contains("VSK")}")
+        Log.i("OcrUtil", "Contains '24': ${ocrText.contains("24")}")
+        Log.i("OcrUtil", "Contains '%': ${ocrText.contains("%")}")
+        Log.d("OcrUtil", "Full OCR text: $ocrText")
         
         fun parseNumber(s: String): Double? {
             // Normalize whitespace and separators for Icelandic formatting

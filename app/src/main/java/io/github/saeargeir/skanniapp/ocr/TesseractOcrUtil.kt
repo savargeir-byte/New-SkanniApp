@@ -209,7 +209,15 @@ object TesseractOcrUtil {
      * Enhanced VAT extraction with Tesseract-specific patterns
      */
     fun extractIcelandicVAT(text: String): OcrUtil.VatExtraction {
+        Log.i("TesseractOcrUtil", "=== TESSERACT VSK EXTRACTION START ===")
+        Log.i("TesseractOcrUtil", "Text length: ${text.length}")
+        Log.i("TesseractOcrUtil", "Text preview: ${text.take(200)}")
+        Log.i("TesseractOcrUtil", "Contains 'VSK': ${text.contains("VSK", ignoreCase = true)}")
+        Log.i("TesseractOcrUtil", "Contains '24': ${text.contains("24")}")
+        Log.d("TesseractOcrUtil", "Full text: $text")
+        
         val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
+        Log.d("TesseractOcrUtil", "Processing ${lines.size} lines")
         
         var subtotal: Double? = null
         var tax: Double? = null
@@ -303,6 +311,10 @@ object TesseractOcrUtil {
                 total = subtotal!! + tax!!
             }
         }
+        
+        Log.i("TesseractOcrUtil", "=== TESSERACT VSK RESULT ===")
+        Log.i("TesseractOcrUtil", "subtotal: $subtotal, tax: $tax, total: $total")
+        Log.i("TesseractOcrUtil", "Rate map: $rateMap")
         
         return OcrUtil.VatExtraction(subtotal, tax, total, rateMap)
     }
