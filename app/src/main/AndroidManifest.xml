@@ -15,8 +15,9 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication">
+        <!-- Splash Activity as launcher -->
         <activity
-            android:name="io.github.saeargeir.skanniapp.MainActivity"
+            android:name="io.github.saeargeir.skanniapp.SplashActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.MyApplication">
@@ -24,6 +25,14 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
+        
+        <!-- Main Activity -->
+        <activity
+            android:name="io.github.saeargeir.skanniapp.MainActivity"
+            android:exported="false"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.MyApplication">
         </activity>
 
         <provider

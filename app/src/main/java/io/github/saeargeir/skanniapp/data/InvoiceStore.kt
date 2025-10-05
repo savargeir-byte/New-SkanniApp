@@ -46,6 +46,27 @@ class InvoiceStore(private val context: Context) {
             saveAll(current)
         }
     }
+    
+    fun clearAll() {
+        try {
+            if (file.exists()) {
+                file.delete()
+            }
+            // Also clear any cached images
+            val imagesDir = File(context.filesDir, "images")
+            if (imagesDir.exists()) {
+                imagesDir.listFiles()?.forEach { imageFile ->
+                    try {
+                        imageFile.delete()
+                    } catch (e: Exception) {
+                        // Log but don't throw - continue clearing other files
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            // Log error but don't crash the app
+        }
+    }
 
     private fun toJson(r: InvoiceRecord): JSONObject = JSONObject().apply {
         put("id", r.id)

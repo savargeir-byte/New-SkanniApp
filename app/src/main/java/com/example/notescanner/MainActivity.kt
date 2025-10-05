@@ -13,6 +13,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.material3.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.lightColorScheme
@@ -198,18 +200,20 @@ fun NoteScannerApp(
                 }
             }
             // Enhanced OCR with hybrid Tesseract + ML Kit for better Icelandic recognition
-            HybridOcrUtil.recognizeTextHybrid(context, destFile, HybridOcrUtil.OcrEngine.AUTO) { hybridResult ->
-                ocrResult = hybridResult.text
-                Log.d("OCR", "Hybrid OCR completed with ${hybridResult.engine} (confidence: ${hybridResult.confidence})")
-                
-                val parsed = OcrUtil.parse(hybridResult.text)
-                val vendor = parsed.vendor ?: hybridResult.text.lines().firstOrNull()?.take(64) ?: "Óþekkt"
-                val invNo = parsed.invoiceNumber
-                
-                // Use enhanced VAT extraction based on the OCR engine used
-                val vatExtract = HybridOcrUtil.extractVATFromHybridResult(hybridResult)
-                val amount = vatExtract.total ?: parsed.amount ?: 0.0
-                var vat = vatExtract.tax ?: parsed.vat ?: 0.0
+            try {
+                HybridOcrUtil.recognizeTextHybrid(context, destFile, HybridOcrUtil.OcrEngine.AUTO) { hybridResult ->
+                    try {
+                        ocrResult = hybridResult.text
+                        Log.d("OCR", "Hybrid OCR completed with ${hybridResult.engine} (confidence: ${hybridResult.confidence})")
+                        
+                        val parsed = OcrUtil.parse(hybridResult.text)
+                        val vendor = parsed.vendor ?: hybridResult.text.lines().firstOrNull()?.take(64) ?: "Óþekkt"
+                        val invNo = parsed.invoiceNumber
+                        
+                        // Use enhanced VAT extraction based on the OCR engine used
+                        val vatExtract = HybridOcrUtil.extractVATFromHybridResult(hybridResult)
+                        val amount = vatExtract.total ?: parsed.amount ?: 0.0
+                        var vat = vatExtract.tax ?: parsed.vat ?: 0.0
                 
                 // Intelligent VAT fallback calculation if OCR failed to extract correct VAT
                 if (amount > 100.0 && (vat < 10.0 || vat > amount * 0.5)) {
@@ -274,7 +278,28 @@ fun NoteScannerApp(
                     invoiceNumber = invNo
                 )
                 store.add(record)
-                refreshRecords()
+                records = store.loadAll()
+                    } catch (e: Exception) {
+                        Log.e("OCRProcessing", "Error processing OCR result", e)
+                        ocrResult = "Villa við OCR vinnslu: ${e.message}"
+                        // Still save basic record with image even if OCR fails
+                        val fallbackRecord = InvoiceRecord(
+                            id = System.currentTimeMillis(),
+                            date = today,
+                            monthKey = monthKey,
+                            vendor = "Óþekkt (OCR villa)",
+                            amount = 0.0,
+                            vat = 0.0,
+                            imagePath = destFile.absolutePath,
+                            invoiceNumber = null
+                        )
+                        store.add(fallbackRecord)
+                        records = store.loadAll()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("HybridOCR", "Failed to initialize OCR", e)
+                ocrResult = "Villa við OCR frumstillingu: ${e.message}"
             }
         } catch (e: Exception) {
             Log.e("NoteScanner", "Failed to save scanned image", e)
@@ -582,7 +607,7 @@ fun NoteScannerApp(
             }
 
             if (showOverview) {
-                OverviewScreen(records = records, onOpen = { selectedRecord = it }, onBack = { showOverview = false })
+                OverviewScreen(records = records, onOpen = { selectedRecord = it }, onBack = { showOverview = false }, onRefresh = { records = store.loadAll() })
                 return@Column
             }
             if (showList) {
@@ -743,7 +768,7 @@ fun NoteScannerApp(
             },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 40.dp)
+                .padding(bottom = 80.dp)  // Moved higher - increased from 40dp to 80dp
                 .fillMaxWidth()
                 .height(56.dp)
         ) { Text("Skanna nótu") }
@@ -889,7 +914,8 @@ private fun loadThumbnail(path: String, maxDim: Int): android.graphics.Bitmap? {
 fun OverviewScreen(
     records: List<InvoiceRecord>,
     onOpen: (InvoiceRecord) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onRefresh: () -> Unit = {}
 ) {
     // Filters state
     val context = LocalContext.current
@@ -965,7 +991,7 @@ fun OverviewScreen(
 
                 Spacer(Modifier.size(8.dp))
 
-                // Export CSV
+                // Export CSV and Clear Cache
                 Row(modifier = Modifier.fillMaxWidth()) {
                     ExportCsvButton(
                         sorted,
@@ -973,6 +999,15 @@ fun OverviewScreen(
                             .weight(1f)
                             .height(52.dp)
                     )
+                    Spacer(Modifier.size(8.dp))
+                    ClearCacheButton(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp)
+                    ) { 
+                        // Refresh records after clearing cache
+                        onRefresh()
+                    }
                 }
             }
         }
@@ -1104,6 +1139,37 @@ private fun ExportCsvButton(list: List<InvoiceRecord>, modifier: Modifier = Modi
         modifier = modifier,
         shape = RoundedCornerShape(14.dp)
     ) { Text("Flytja út CSV") }
+}
+
+@Composable
+private fun ClearCacheButton(modifier: Modifier = Modifier, onCacheCleared: () -> Unit) {
+    val context = LocalContext.current
+    val store = remember { InvoiceStore(context) }
+    var showConfirmDialog by remember { mutableStateOf(false) }
+    
+    OutlinedButton(
+        onClick = { showConfirmDialog = true },
+        modifier = modifier,
+        shape = RoundedCornerShape(14.dp)
+    ) { Text("Hreinsa gögn") }
+    
+    if (showConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showConfirmDialog = false },
+            title = { Text("Hreinsa öll gögn") },
+            text = { Text("Ertu viss um að þú viljir eyða öllum nótum og myndum? Þessa aðgerð er ekki hægt að afturkalla.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    store.clearAll()
+                    showConfirmDialog = false
+                    onCacheCleared()
+                }) { Text("Já, eyða") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirmDialog = false }) { Text("Hætta við") }
+            }
+        )
+    }
 }
 
 @Composable
