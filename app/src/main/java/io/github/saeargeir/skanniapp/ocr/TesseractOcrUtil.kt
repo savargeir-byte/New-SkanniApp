@@ -16,21 +16,42 @@ object TesseractOcrUtil {
     
     private const val TAG = "TesseractOcr"
     private const val TESSDATA_FOLDER = "tessdata"
+    
+    // Multi-language support for international invoices
     private const val ICELANDIC_LANG = "isl"
-    private const val ENGLISH_LANG = "eng"
+    private const val ENGLISH_LANG = "eng" 
+    private const val DANISH_LANG = "dan"
+    private const val GERMAN_LANG = "deu"
+    private const val FRENCH_LANG = "fra"
+    private const val SPANISH_LANG = "spa"
+    private const val ITALIAN_LANG = "ita"
+    
+    // Language combinations for different regions
+    private const val NORDIC_LANGS = "$ICELANDIC_LANG+$DANISH_LANG+$ENGLISH_LANG"
+    private const val EUROPEAN_LANGS = "$ENGLISH_LANG+$GERMAN_LANG+$FRENCH_LANG+$SPANISH_LANG+$ITALIAN_LANG"
+    private const val DEFAULT_LANGS = "$ICELANDIC_LANG+$ENGLISH_LANG"
+    
+    enum class InvoiceRegion {
+        ICELAND,      // Icelandic + English
+        NORDIC,       // Icelandic + Danish + English  
+        EUROPEAN,     // English + German + French + Spanish + Italian
+        GLOBAL        // All languages
+    }
     
     data class TesseractResult(
         val text: String,
         val confidence: Float,
         val processingTimeMs: Long,
         val success: Boolean,
-        val error: String? = null
+        val error: String? = null,
+        val detectedLanguage: String? = null,
+        val usedLanguages: String? = null
     )
     
     /**
-     * Initialize Tesseract with Icelandic language data
+     * Initialize Tesseract with multi-language support based on region
      */
-    private fun initTesseract(context: Context): TessBaseAPI? {
+    private fun initTesseract(context: Context, region: InvoiceRegion = InvoiceRegion.ICELAND): TessBaseAPI? {
         try {
             val dataPath = context.filesDir.absolutePath
             val tessDataDir = File(dataPath, TESSDATA_FOLDER)
@@ -40,28 +61,43 @@ object TesseractOcrUtil {
                 tessDataDir.mkdirs()
             }
             
-            // Copy language data files if they don't exist
-            copyLanguageDataIfNeeded(context, tessDataDir, ICELANDIC_LANG)
-            copyLanguageDataIfNeeded(context, tessDataDir, ENGLISH_LANG)
+            // Determine language combination based on region
+            val langCode = when (region) {
+                InvoiceRegion.ICELAND -> DEFAULT_LANGS
+                InvoiceRegion.NORDIC -> NORDIC_LANGS  
+                InvoiceRegion.EUROPEAN -> EUROPEAN_LANGS
+                InvoiceRegion.GLOBAL -> "$ICELANDIC_LANG+$EUROPEAN_LANGS"
+            }
+            
+            // Copy required language data files
+            val requiredLanguages = langCode.split("+")
+            requiredLanguages.forEach { lang ->
+                copyLanguageDataIfNeeded(context, tessDataDir, lang)
+            }
             
             val tesseract = TessBaseAPI()
             
-            // Initialize with Icelandic and English
-            val langCode = "$ICELANDIC_LANG+$ENGLISH_LANG"
-            
             if (tesseract.init(dataPath, langCode)) {
-                // Configure for better Icelandic recognition
+                // Configure for optimal invoice recognition
                 tesseract.pageSegMode = TessBaseAPI.PageSegMode.PSM_AUTO
                 
-                // Whitelist Icelandic characters and common receipt symbols
-                val icelandicChars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZÞÆÖÐabcdefghijklmnopqrstuvwxyzþæöð.,-%kr():/ "
-                tesseract.setVariable(TessBaseAPI.VAR_CHAR_WHITELIST, icelandicChars)
+                // Multi-language character whitelist (includes special characters from all supported languages)
+                val multiLangChars = "0123456789" +
+                    "ABCDEFGHIJKLMNOPQRSTUVWXYZÞÆÖÐabcdefghijklmnopqrstuvwxyzþæöð" + // Icelandic
+                    "ÄÖÜäöüß" + // German  
+                    "ÀÁÂÃÄÅÇÈÉÊËÌÍÎÏÑÒÓÔÕÖØÙÚÛÜÝàáâãäåçèéêëìíîïñòóôõöøùúûüý" + // French/Spanish
+                    "ÆØÅæøå" + // Danish/Norwegian
+                    ".,-%€$£¥kr():/ "
                 
-                // Optimize for receipt-like text
+                tesseract.setVariable(TessBaseAPI.VAR_CHAR_WHITELIST, multiLangChars)
+                
+                // Optimize for invoice/receipt text
                 tesseract.setVariable("tessedit_char_blacklist", "")
                 tesseract.setVariable("preserve_interword_spaces", "1")
+                tesseract.setVariable("tessedit_create_hocr", "0")
+                tesseract.setVariable("tessedit_create_pdf", "0")
                 
-                Log.d(TAG, "Tesseract initialized successfully with languages: $langCode")
+                Log.d(TAG, "Tesseract initialized successfully with languages: $langCode for region: $region")
                 return tesseract
             } else {
                 Log.e(TAG, "Failed to initialize Tesseract with languages: $langCode")
@@ -69,7 +105,7 @@ object TesseractOcrUtil {
                 return null
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error initializing Tesseract", e)
+            Log.e(TAG, "Error initializing Tesseract for region $region", e)
             return null
         }
     }
@@ -100,24 +136,25 @@ object TesseractOcrUtil {
     }
     
     /**
-     * Recognize text using Tesseract OCR with Icelandic optimization
+     * Recognize text using Tesseract OCR with region-specific optimization
      */
     fun recognizeTextWithTesseract(
         context: Context,
         imageFile: File,
+        region: InvoiceRegion = InvoiceRegion.ICELAND,
         onResult: (TesseractResult) -> Unit
     ) {
         val startTime = System.currentTimeMillis()
         
         try {
-            val tesseract = initTesseract(context)
+            val tesseract = initTesseract(context, region)
             if (tesseract == null) {
                 onResult(TesseractResult(
                     text = "",
                     confidence = 0f,
                     processingTimeMs = System.currentTimeMillis() - startTime,
                     success = false,
-                    error = "Failed to initialize Tesseract"
+                    error = "Failed to initialize Tesseract for region $region"
                 ))
                 return
             }
@@ -143,22 +180,34 @@ object TesseractOcrUtil {
             val confidence = tesseract.meanConfidence() / 100f
             val processingTime = System.currentTimeMillis() - startTime
             
+            // Try to detect the most prominent language in the result
+            val detectedLanguage = InternationalInvoiceParser.detectLanguage(recognizedText)
+            val usedLanguages = when (region) {
+                InvoiceRegion.ICELAND -> DEFAULT_LANGS
+                InvoiceRegion.NORDIC -> NORDIC_LANGS  
+                InvoiceRegion.EUROPEAN -> EUROPEAN_LANGS
+                InvoiceRegion.GLOBAL -> "$ICELANDIC_LANG+$EUROPEAN_LANGS"
+            }
+            
             // Clean up
             bitmap.recycle()
             tesseract.end()
             
             Log.d(TAG, "Tesseract OCR completed in ${processingTime}ms with confidence: $confidence")
+            Log.d(TAG, "Used languages: $usedLanguages, detected: $detectedLanguage")
             Log.d(TAG, "Recognized text: $recognizedText")
             
             onResult(TesseractResult(
                 text = recognizedText,
                 confidence = confidence,
                 processingTimeMs = processingTime,
-                success = true
+                success = true,
+                detectedLanguage = detectedLanguage,
+                usedLanguages = usedLanguages
             ))
             
         } catch (e: Exception) {
-            Log.e(TAG, "Error during Tesseract OCR", e)
+            Log.e(TAG, "Error during Tesseract OCR for region $region", e)
             onResult(TesseractResult(
                 text = "",
                 confidence = 0f,
