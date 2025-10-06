@@ -19,9 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
@@ -57,11 +55,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.sp
 import android.graphics.BitmapFactory
 import android.content.ContentResolver
+import io.github.saeargeir.skanniapp.data.InvoiceStore
 import io.github.saeargeir.skanniapp.model.InvoiceRecord
 import io.github.saeargeir.skanniapp.ocr.HybridOcrUtil
-import io.github.saeargeir.skanniapp.firebase.FirebaseRepository
-import io.github.saeargeir.skanniapp.ui.auth.AuthScreen
-import io.github.saeargeir.skanniapp.ui.auth.UserProfileCard
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.text.SimpleDateFormat
@@ -131,18 +127,13 @@ fun getCurrentMonthKey(): String {
 fun NoteScannerApp(darkTheme: Boolean, onToggleTheme: () -> Unit) {
     val context = LocalContext.current
     val activity = context as? ComponentActivity
-    val firebaseRepo = remember { FirebaseRepository() }
-    
+    val store = remember { InvoiceStore(context) }
     var showRecordForm by remember { mutableStateOf(false) }
     var selectedRecord by remember { mutableStateOf<InvoiceRecord?>(null) }
+    var records by remember { mutableStateOf(store.loadAll()) }
     var menuExpanded by remember { mutableStateOf(false) }
-    var showUserProfile by remember { mutableStateOf(false) }
     
-    val currentUser by firebaseRepo.currentUser.collectAsState()
-    val isUserSignedIn = currentUser != null
-    
-    // Get records from Firebase Flow
-    val records by firebaseRepo.getInvoicesFlow().collectAsState(initial = emptyList())
+    fun refreshRecords() { records = store.loadAll() }
 
     // Expose ImageCapture from CameraPreview so the main Scan button can trigger capture
     var imageCaptureRef by remember { mutableStateOf<ImageCapture?>(null) }
@@ -175,8 +166,8 @@ fun NoteScannerApp(darkTheme: Boolean, onToggleTheme: () -> Unit) {
                             imagePath = destFile.absolutePath,
                             invoiceNumber = HybridOcrUtil.extractInvoiceNumber(extractedText) ?: ""
                         )
-                        // Upload to Firebase with image
-                        firebaseRepo.addInvoice(newRecord, File(destFile.absolutePath))
+                        store.add(newRecord)
+                        refreshRecords()
                         selectedRecord = newRecord
                         showRecordForm = true
                     }
@@ -273,17 +264,6 @@ fun NoteScannerApp(darkTheme: Boolean, onToggleTheme: () -> Unit) {
         }
     }
 
-    // Show auth screen if user is not signed in
-    if (!isUserSignedIn) {
-        AuthScreen(
-            authService = firebaseRepo.authService,
-            onAuthSuccess = {
-                // User signed in successfully - records will update automatically via Flow
-            }
-        )
-        return
-    }
-
     Box(modifier = Modifier.fillMaxSize()) {
         // Background gradient
         Box(
@@ -330,10 +310,6 @@ fun NoteScannerApp(darkTheme: Boolean, onToggleTheme: () -> Unit) {
                             menuExpanded = false
                             val suggested = "notur-" + getTodayIso() + ".csv"
                             createCsvDocLauncher.launch(suggested)
-                        })
-                        DropdownMenuItem(text = { Text("👤 Notandaupplýsingar") }, onClick = {
-                            menuExpanded = false
-                            showUserProfile = true
                         })
                     }
                     
@@ -410,7 +386,8 @@ fun NoteScannerApp(darkTheme: Boolean, onToggleTheme: () -> Unit) {
                             showRecordForm = true 
                         },
                         onDelete = { 
-                            firebaseRepo.deleteInvoice(record.id)
+                            store.deleteById(record.id)
+                            refreshRecords()
                         }
                     )
                 }
@@ -423,35 +400,14 @@ fun NoteScannerApp(darkTheme: Boolean, onToggleTheme: () -> Unit) {
         InvoiceRecordFormDialog(
             record = selectedRecord!!,
             onSave = { updatedRecord ->
-                firebaseRepo.updateInvoice(updatedRecord)
+                store.update(updatedRecord)
+                refreshRecords()
                 showRecordForm = false
                 selectedRecord = null
             },
             onDismiss = {
                 showRecordForm = false
                 selectedRecord = null
-            }
-        )
-    }
-    
-    // User profile dialog
-    if (showUserProfile) {
-        AlertDialog(
-            onDismissRequest = { showUserProfile = false },
-            title = { Text("Notandaupplýsingar") },
-            text = {
-                UserProfileCard(
-                    authService = firebaseRepo.authService,
-                    onSignOut = {
-                        showUserProfile = false
-                        // Records will be cleared automatically when user signs out via Flow
-                    }
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { showUserProfile = false }) {
-                    Text("Loka")
-                }
             }
         )
     }
