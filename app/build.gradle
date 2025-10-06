@@ -147,8 +147,8 @@ dependencies {
 	// Google Sign-In for Firebase Auth
 	implementation 'com.google.android.gms:play-services-auth:21.2.0'
 	
-	// DataStore for preferences (theme settings)
-	implementation 'androidx.datastore:datastore-preferences:1.1.1'
+	// DataStore for preferences (theme settings) - temporarily disabled due to build issues
+	// implementation 'androidx.datastore:datastore-preferences:1.1.1'
 
 	// POI Excel library (from old working commit)
 	implementation 'org.apache.poi:poi:5.2.5'
