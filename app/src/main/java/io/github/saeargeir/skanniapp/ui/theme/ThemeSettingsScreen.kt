@@ -46,7 +46,7 @@ fun ThemeSettingsScreen(
             IconButton(onClick = onNavigateBack) {
                 Icon(
                     imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Til baka"
+                    contentDescription = "←"
                 )
             }
             

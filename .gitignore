@@ -13,11 +13,33 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Keystore files (keep in repo for now)
 # keystore.properties - removed to allow keystores in repo
 # notescanner-release.jks - removed to allow keystores in repo  
 # upload-keystore.jks - removed to allow keystores in repo
 upload-keystore.jks.b64
+
+# APK and AAB files
+*.apk
+*.aab
 app-release.aab
+
+# Build artifacts and logs
+gradle-build*.log
+aapt2-link-output.txt
+android-signing.env
+
+# Status files
+BUILD_STATUS.md
+DEPLOYMENT_READY.md
+GITHUB_RELEASE_COMPLETE.md
+HYBRID_OCR_COMPLETE.md
+OCR_ENHANCEMENT_STATUS.md
+PLAY_SUBMISSION.md
+
+# Release notes (keep current only)
+RELEASE_NOTES_v*.md
 
 # Local secrets and helper artifacts (do not commit)
 .secrets/
@@ -38,8 +60,12 @@ app/**/outputs/
 
 # Local release artifact bundles created for convenience
 release_artifacts_*/
+release_artifacts/
 
-# Gradle logs
-gradle-build*.log
-*.aab
-*.apk
+# Temporary directories
+powershell/
+java/
+winget/
+
+# HTML files (unless documentation)
+index.html
