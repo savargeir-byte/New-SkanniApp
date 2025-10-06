@@ -26,9 +26,9 @@ android {
 		applicationId 'io.github.saeargeir.skanniapp'
 		minSdk 26
 		targetSdk 33
-		// Bump version for improved VAT/VSK parsing and moved scan button
-		versionCode 42
-		versionName '1.0.42'
+		// Fix OCR parsing with conservative patterns and safety checks
+		versionCode 48
+		versionName '1.0.48'
 		testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
 	}
 
