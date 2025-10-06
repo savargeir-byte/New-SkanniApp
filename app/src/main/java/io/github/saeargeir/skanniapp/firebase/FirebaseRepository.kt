@@ -4,12 +4,13 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import io.github.saeargeir.skanniapp.model.InvoiceRecord
+import io.github.saeargeir.skanniapp.utils.logFirebaseError
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import java.io.File
 
-class FirebaseRepository(context: Context) {
-    private val authService = FirebaseAuthService(context)
+class FirebaseRepository(private val context: Context) {
+    val authService = FirebaseAuthService(context)
     private val firestoreService = FirestoreService()
     private val storageService = FirebaseStorageService()
     
@@ -69,6 +70,7 @@ class FirebaseRepository(context: Context) {
             Result.success(invoiceId)
         } catch (e: Exception) {
             Log.e("FirebaseRepository", "Error adding invoice", e)
+            context.logFirebaseError("addInvoice", "Failed to add invoice: ${e.message}", e)
             Result.failure(e)
         }
     }
