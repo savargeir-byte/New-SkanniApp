@@ -12,6 +12,8 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
@@ -62,6 +64,10 @@ import io.github.saeargeir.skanniapp.ocr.HybridOcrUtil
 import io.github.saeargeir.skanniapp.firebase.FirebaseRepository
 import io.github.saeargeir.skanniapp.ui.auth.AuthScreen
 import io.github.saeargeir.skanniapp.ui.auth.UserProfileCard
+import io.github.saeargeir.skanniapp.ui.theme.ThemeManager
+import io.github.saeargeir.skanniapp.ui.theme.ThemeConfig
+import io.github.saeargeir.skanniapp.ui.theme.shouldUseDarkTheme
+import io.github.saeargeir.skanniapp.ui.theme.ThemeSettingsScreen
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.text.SimpleDateFormat
@@ -82,13 +88,18 @@ class MainActivity : ComponentActivity() {
         cameraExecutor = Executors.newSingleThreadExecutor()
         try {
             setContent {
-                // Wrap in Material3 theme to ensure required CompositionLocals exist on all devices
-                // Provide a slightly boxier shape theme across the app
-                var darkMode by rememberSaveable { mutableStateOf(false) }
+                // Use ThemeManager for persistent theme settings
+                val themeManager = remember { ThemeManager(this@MainActivity) }
+                val themeConfig by themeManager.themeConfig.collectAsState(
+                    initial = ThemeConfig()
+                )
+                
+                val darkTheme = shouldUseDarkTheme(themeConfig)
                 val lightColors = lightColorScheme()
                 val darkColors = darkColorScheme()
+                
                 MaterialTheme(
-                    colorScheme = if (darkMode) darkColors else lightColors,
+                    colorScheme = if (darkTheme) darkColors else lightColors,
                     shapes = Shapes(
                         small = RoundedCornerShape(8.dp),
                         medium = RoundedCornerShape(12.dp),
@@ -97,8 +108,8 @@ class MainActivity : ComponentActivity() {
                 ) {
                     Surface(modifier = Modifier.fillMaxSize()) {
                         NoteScannerApp(
-                            darkTheme = darkMode,
-                            onToggleTheme = { darkMode = !darkMode }
+                            themeManager = themeManager,
+                            isDarkTheme = darkTheme
                         )
                     }
                 }
@@ -128,7 +139,10 @@ fun getCurrentMonthKey(): String {
 }
 
 @Composable
-fun NoteScannerApp(darkTheme: Boolean, onToggleTheme: () -> Unit) {
+fun NoteScannerApp(
+    themeManager: ThemeManager,
+    isDarkTheme: Boolean
+) {
     val context = LocalContext.current
     val activity = context as? ComponentActivity
     val firebaseRepo = remember { FirebaseRepository() }
@@ -137,6 +151,7 @@ fun NoteScannerApp(darkTheme: Boolean, onToggleTheme: () -> Unit) {
     var selectedRecord by remember { mutableStateOf<InvoiceRecord?>(null) }
     var menuExpanded by remember { mutableStateOf(false) }
     var showUserProfile by remember { mutableStateOf(false) }
+    var showThemeSettings by remember { mutableStateOf(false) }
     
     val currentUser by firebaseRepo.currentUser.collectAsState()
     val isUserSignedIn = currentUser != null
@@ -322,6 +337,23 @@ fun NoteScannerApp(darkTheme: Boolean, onToggleTheme: () -> Unit) {
                         Text("☰", fontSize = 22.sp)
                     }
                     DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                        DropdownMenuItem(
+                            text = { 
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = if (isDarkTheme) Icons.Default.DarkMode else Icons.Default.LightMode,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Þemastillingar")
+                                }
+                            }, 
+                            onClick = {
+                                menuExpanded = false
+                                showThemeSettings = true
+                            }
+                        )
                         DropdownMenuItem(text = { Text("Senda CSV í tölvupósti") }, onClick = {
                             menuExpanded = false
                             exportCsv(records, context, chooserTitle = "Senda CSV")
@@ -454,6 +486,18 @@ fun NoteScannerApp(darkTheme: Boolean, onToggleTheme: () -> Unit) {
                 }
             }
         )
+    }
+    
+    // Theme settings screen overlay
+    if (showThemeSettings) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            ThemeSettingsScreen(
+                onNavigateBack = { showThemeSettings = false }
+            )
+        }
     }
 }
 

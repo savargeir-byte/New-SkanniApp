@@ -13,6 +13,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+/**
+ * Firebase Authentication Service - Google Sign-In Only
+ * Simplified authentication focused on Google as the primary and only auth method
+ */
 class FirebaseAuthService(private val context: Context) {
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
     private lateinit var googleSignInClient: GoogleSignInClient
@@ -29,6 +33,7 @@ class FirebaseAuthService(private val context: Context) {
         // Listen for auth state changes
         auth.addAuthStateListener { firebaseAuth ->
             _currentUser.value = firebaseAuth.currentUser
+            Log.d("FirebaseAuth", "Auth state changed. User: ${firebaseAuth.currentUser?.email}")
         }
     }
     
@@ -36,103 +41,117 @@ class FirebaseAuthService(private val context: Context) {
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken("368139082393-4l01beasqkrdds52pqn93cn1utnen384.apps.googleusercontent.com") // Web client ID from google-services.json
             .requestEmail()
+            .requestProfile()
             .build()
         
         googleSignInClient = GoogleSignIn.getClient(context, gso)
+        Log.d("FirebaseAuth", "Google Sign-In configured successfully")
     }
     
-    suspend fun signInWithEmailAndPassword(email: String, password: String): Result<FirebaseUser> {
-        return try {
-            _isLoading.value = true
-            val result = auth.signInWithEmailAndPassword(email, password).await()
-            val user = result.user
-            if (user != null) {
-                Log.i("FirebaseAuth", "Sign in successful for user: ${user.email}")
-                Result.success(user)
-            } else {
-                Result.failure(Exception("Sign in failed: No user returned"))
-            }
-        } catch (e: Exception) {
-            Log.e("FirebaseAuth", "Sign in failed", e)
-            Result.failure(e)
-        } finally {
-            _isLoading.value = false
-        }
-    }
-    
-    suspend fun createUserWithEmailAndPassword(email: String, password: String): Result<FirebaseUser> {
-        return try {
-            _isLoading.value = true
-            val result = auth.createUserWithEmailAndPassword(email, password).await()
-            val user = result.user
-            if (user != null) {
-                Log.i("FirebaseAuth", "Account created successfully for user: ${user.email}")
-                Result.success(user)
-            } else {
-                Result.failure(Exception("Account creation failed: No user returned"))
-            }
-        } catch (e: Exception) {
-            Log.e("FirebaseAuth", "Account creation failed", e)
-            Result.failure(e)
-        } finally {
-            _isLoading.value = false
-        }
-    }
-    
+    /**
+     * Sign in with Google - Primary and only authentication method
+     */
     suspend fun signInWithGoogle(idToken: String): Result<FirebaseUser> {
         return try {
             _isLoading.value = true
+            Log.d("FirebaseAuth", "Starting Google sign-in with token")
+            
             val credential = GoogleAuthProvider.getCredential(idToken, null)
             val result = auth.signInWithCredential(credential).await()
             val user = result.user
+            
             if (user != null) {
-                Log.i("FirebaseAuth", "Google sign in successful for user: ${user.email}")
+                Log.i("FirebaseAuth", "Google sign-in successful for user: ${user.email}")
+                Log.d("FirebaseAuth", "User ID: ${user.uid}, Display Name: ${user.displayName}")
                 Result.success(user)
             } else {
-                Result.failure(Exception("Google sign in failed: No user returned"))
+                val error = "Google sign-in failed: No user returned"
+                Log.e("FirebaseAuth", error)
+                Result.failure(Exception(error))
             }
         } catch (e: Exception) {
-            Log.e("FirebaseAuth", "Google sign in failed", e)
+            Log.e("FirebaseAuth", "Google sign-in failed", e)
             Result.failure(e)
         } finally {
             _isLoading.value = false
         }
     }
     
+    /**
+     * Get the Google Sign-In client for launching sign-in intent
+     */
     fun getGoogleSignInClient(): GoogleSignInClient {
         return googleSignInClient
     }
     
+    /**
+     * Sign out from both Firebase and Google
+     */
     fun signOut() {
         try {
+            val userEmail = auth.currentUser?.email
             auth.signOut()
             googleSignInClient.signOut()
-            Log.i("FirebaseAuth", "User signed out successfully")
+            Log.i("FirebaseAuth", "User signed out successfully: $userEmail")
         } catch (e: Exception) {
             Log.e("FirebaseAuth", "Sign out failed", e)
         }
     }
     
-    suspend fun sendPasswordResetEmail(email: String): Result<Unit> {
-        return try {
-            auth.sendPasswordResetEmail(email).await()
-            Log.i("FirebaseAuth", "Password reset email sent to: $email")
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Log.e("FirebaseAuth", "Failed to send password reset email", e)
-            Result.failure(e)
-        }
+    /**
+     * Get current authenticated user
+     */
+    fun getCurrentUser(): FirebaseUser? {
+        return auth.currentUser
     }
     
+    /**
+     * Get current user's unique ID
+     */
     fun getCurrentUserId(): String? {
         return auth.currentUser?.uid
     }
     
+    /**
+     * Get current user's email address
+     */
     fun getCurrentUserEmail(): String? {
         return auth.currentUser?.email
     }
     
+    /**
+     * Get current user's display name
+     */
+    fun getCurrentUserDisplayName(): String? {
+        return auth.currentUser?.displayName
+    }
+    
+    /**
+     * Get current user's profile photo URL
+     */
+    fun getCurrentUserPhotoUrl(): String? {
+        return auth.currentUser?.photoUrl?.toString()
+    }
+    
+    /**
+     * Check if a user is currently signed in
+     */
     fun isUserSignedIn(): Boolean {
-        return auth.currentUser != null
+        val isSignedIn = auth.currentUser != null
+        Log.d("FirebaseAuth", "User signed in: $isSignedIn")
+        return isSignedIn
+    }
+    
+    /**
+     * Reload current user data from Firebase
+     */
+    suspend fun reloadCurrentUser(): Result<Unit> {
+        return try {
+            auth.currentUser?.reload()?.await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("FirebaseAuth", "Failed to reload user", e)
+            Result.failure(e)
+        }
     }
 }

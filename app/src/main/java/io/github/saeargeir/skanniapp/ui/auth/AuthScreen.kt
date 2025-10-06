@@ -3,36 +3,47 @@ package io.github.saeargeir.skanniapp.ui.auth
 import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.common.api.ApiException
 import io.github.saeargeir.skanniapp.firebase.FirebaseAuthService
 import kotlinx.coroutines.launch
 
+/**
+ * Authentication screen with Google Sign-In only
+ * Clean, simple interface focused on Google authentication
+ */
 @Composable
 fun AuthScreen(
     authService: FirebaseAuthService,
     onAuthSuccess: () -> Unit
 ) {
-    var isLoginMode by remember { mutableStateOf(true) }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    
+    // Check if user is already signed in
+    LaunchedEffect(Unit) {
+        authService.getCurrentUser()?.let {
+            onAuthSuccess()
+        }
+    }
     
     // Google Sign-In launcher
     val googleSignInLauncher = rememberLauncherForActivityResult(
@@ -51,192 +62,191 @@ fun AuthScreen(
                         } else {
                             errorMessage = "Google innskráning mistókst: ${signInResult.exceptionOrNull()?.message}"
                         }
+                        isLoading = false
                     }
                 } else {
                     errorMessage = "Google innskráning mistókst: Ekkert token"
+                    isLoading = false
                 }
             } catch (e: ApiException) {
                 errorMessage = "Google innskráning mistókst: ${e.message}"
+                isLoading = false
+            }
+        } else {
+            isLoading = false
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.primary,
+                        MaterialTheme.colorScheme.primaryContainer
+                    )
+                )
+            )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // App Logo and Welcome
+            Icon(
+                imageVector = Icons.Default.CameraAlt,
+                contentDescription = "SkanniApp Logo",
+                modifier = Modifier.size(80.dp),
+                tint = MaterialTheme.colorScheme.onPrimary
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Text(
+                text = "SkanniApp",
+                style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.colorScheme.onPrimary,
+                fontWeight = FontWeight.Bold
+            )
+            
+            Text(
+                text = "Skanna og vista reikninga auðveldlega",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
+                textAlign = TextAlign.Center
+            )
+            
+            Spacer(modifier = Modifier.height(48.dp))
+            
+            // Google Sign-In Button
+            Button(
+                onClick = {
+                    if (!isLoading) {
+                        isLoading = true
+                        errorMessage = null
+                        val signInIntent = authService.getGoogleSignInClient().signInIntent
+                        googleSignInLauncher.launch(signInIntent)
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White,
+                    contentColor = Color.Black
+                ),
+                enabled = !isLoading
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = Color.Black
+                    )
+                } else {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        // Google logo placeholder
+                        Icon(
+                            imageVector = Icons.Default.AccountCircle,
+                            contentDescription = "Google",
+                            modifier = Modifier.size(24.dp),
+                            tint = Color.Unspecified
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "Halda áfram með Google",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            // Error message
+            errorMessage?.let { error ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Text(
+                        text = error,
+                        modifier = Modifier.padding(16.dp),
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(48.dp))
+            
+            // Benefits section
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.Start
+            ) {
+                Text(
+                    text = "Með Google innskráningu færðu:",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f),
+                    fontWeight = FontWeight.Medium
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                BenefitItem(
+                    icon = Icons.Default.Cloud,
+                    text = "Cloud backup af öllum reikningunum þínum"
+                )
+                BenefitItem(
+                    icon = Icons.Default.Sync,
+                    text = "Samstilling milli allra tækjanna þinna"
+                )
+                BenefitItem(
+                    icon = Icons.Default.Security,
+                    text = "Örugg geymsla með Google Security"
+                )
+                BenefitItem(
+                    icon = Icons.Default.Analytics,
+                    text = "Útgjaldagreining og tölfræði"
+                )
             }
         }
     }
-    
-    Column(
+}
+
+@Composable
+private fun BenefitItem(
+    icon: ImageVector,
+    text: String
+) {
+    Row(
         modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp),
+            tint = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
         Text(
-            text = "SkanniApp",
-            style = MaterialTheme.typography.headlineLarge,
-            modifier = Modifier.padding(bottom = 32.dp)
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
         )
-        
-        Text(
-            text = if (isLoginMode) "Innskráning" else "Nýskráning",
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-        
-        OutlinedTextField(
-            value = email,
-            onValueChange = { 
-                email = it
-                errorMessage = null
-            },
-            label = { Text("Netfang") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !isLoading
-        )
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        OutlinedTextField(
-            value = password,
-            onValueChange = { 
-                password = it
-                errorMessage = null
-            },
-            label = { Text("Lykilorð") },
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !isLoading
-        )
-        
-        if (!isLoginMode) {
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            OutlinedTextField(
-                value = confirmPassword,
-                onValueChange = { 
-                    confirmPassword = it
-                    errorMessage = null
-                },
-                label = { Text("Staðfesta lykilorð") },
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading
-            )
-        }
-        
-        if (errorMessage != null) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = errorMessage!!,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        Button(
-            onClick = {
-                if (email.isBlank() || password.isBlank()) {
-                    errorMessage = "Vinsamlegast fylltu út öll reitina"
-                    return@Button
-                }
-                
-                if (!isLoginMode && password != confirmPassword) {
-                    errorMessage = "Lykilorðin passa ekki saman"
-                    return@Button
-                }
-                
-                if (!isLoginMode && password.length < 6) {
-                    errorMessage = "Lykilorð verður að vera að minnsta kosti 6 stafir"
-                    return@Button
-                }
-                
-                scope.launch {
-                    isLoading = true
-                    val result = if (isLoginMode) {
-                        authService.signInWithEmailAndPassword(email, password)
-                    } else {
-                        authService.createUserWithEmailAndPassword(email, password)
-                    }
-                    
-                    if (result.isSuccess) {
-                        onAuthSuccess()
-                    } else {
-                        errorMessage = if (isLoginMode) {
-                            "Innskráning mistókst: ${result.exceptionOrNull()?.message}"
-                        } else {
-                            "Nýskráning mistókst: ${result.exceptionOrNull()?.message}"
-                        }
-                    }
-                    isLoading = false
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !isLoading
-        ) {
-            if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(16.dp),
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
-            } else {
-                Text(if (isLoginMode) "Skrá inn" else "Búa til reikning")
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        OutlinedButton(
-            onClick = {
-                val signInIntent = authService.getGoogleSignInClient().signInIntent
-                googleSignInLauncher.launch(signInIntent)
-            },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !isLoading
-        ) {
-            Text("🔵 Skrá inn með Google")
-        }
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        TextButton(
-            onClick = { 
-                isLoginMode = !isLoginMode
-                errorMessage = null
-            },
-            enabled = !isLoading
-        ) {
-            Text(
-                text = if (isLoginMode) {
-                    "Ertu ekki með reikning? Nýskráning"
-                } else {
-                    "Ertu með reikning? Innskráning"
-                }
-            )
-        }
-        
-        if (isLoginMode) {
-            TextButton(
-                onClick = {
-                    if (email.isBlank()) {
-                        errorMessage = "Vinsamlegast sláðu inn netfang"
-                        return@TextButton
-                    }
-                    scope.launch {
-                        val result = authService.sendPasswordResetEmail(email)
-                        if (result.isSuccess) {
-                            errorMessage = "Tölvupóstur sendur til að endurstilla lykilorð"
-                        } else {
-                            errorMessage = "Villa við að senda tölvupóst: ${result.exceptionOrNull()?.message}"
-                        }
-                    }
-                },
-                enabled = !isLoading
-            ) {
-                Text("Gleymt lykilorð?")
-            }
-        }
     }
 }
 
@@ -256,20 +266,90 @@ fun UserProfileCard(
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
+            // User info section
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Profile picture or placeholder
+                Icon(
+                    imageVector = Icons.Default.AccountCircle,
+                    contentDescription = "Profile",
+                    modifier = Modifier.size(48.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                
+                Spacer(modifier = Modifier.width(12.dp))
+                
+                Column {
+                    Text(
+                        text = currentUser?.displayName ?: "Google notandi",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    
+                    Text(
+                        text = currentUser?.email ?: "Óþekkt netfang",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Divider()
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Account info
             Text(
-                text = "Notandi",
-                style = MaterialTheme.typography.titleMedium
+                text = "Reikningsupplýsingar",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary
             )
             
             Spacer(modifier = Modifier.height(8.dp))
             
-            Text(
-                text = currentUser?.email ?: "Óþekkt notandi",
-                style = MaterialTheme.typography.bodyMedium
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Verified,
+                    contentDescription = "Verified",
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Staðfest Google reikningur",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Cloud,
+                    contentDescription = "Cloud",
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Cloud backup virkt",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             
             Spacer(modifier = Modifier.height(16.dp))
             
+            // Sign out button
             Button(
                 onClick = {
                     authService.signOut()
@@ -280,6 +360,12 @@ fun UserProfileCard(
                     containerColor = MaterialTheme.colorScheme.error
                 )
             ) {
+                Icon(
+                    imageVector = Icons.Default.Logout,
+                    contentDescription = "Sign out",
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
                 Text("Skrá út")
             }
         }
