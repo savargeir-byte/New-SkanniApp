@@ -133,7 +133,7 @@ This project is owned by **IceVeflausnir** and is provided as-is. Users are resp
 ## 🤝 Contributing
 
 This is a private project. For issues or suggestions, please contact:
-- **Email:** saeargeir@gmail.com
+- **Email:** iceveflausnir@gmail.com
 - **GitHub:** [@saeargeir](https://github.com/saeargeir)
 
 ## 📱 Download
