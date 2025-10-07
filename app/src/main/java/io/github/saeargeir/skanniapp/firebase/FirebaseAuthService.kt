@@ -12,6 +12,7 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import io.github.saeargeir.skanniapp.R
 
 /**
  * Firebase Authentication Service - Google Sign-In Only
@@ -38,14 +39,15 @@ class FirebaseAuthService(private val context: Context) {
     }
     
     private fun setupGoogleSignIn() {
+        val webClientId = context.getString(R.string.default_web_client_id)
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken("368139082393-4l01beasqkrdds52pqn93cn1utnen384.apps.googleusercontent.com") // Web client ID from google-services.json
+            .requestIdToken(webClientId) // From google-services.json generated resource
             .requestEmail()
             .requestProfile()
             .build()
         
         googleSignInClient = GoogleSignIn.getClient(context, gso)
-        Log.d("FirebaseAuth", "Google Sign-In configured successfully")
+        Log.d("FirebaseAuth", "Google Sign-In configured successfully with default_web_client_id")
     }
     
     /**
