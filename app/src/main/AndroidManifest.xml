@@ -34,8 +34,7 @@
             android:name="io.github.saeargeir.skanniapp.MainActivity"
             android:exported="false"
             android:label="@string/app_name"
-            android:theme="@style/Theme.MyApplication">
-        </activity>
+            android:theme="@style/Theme.MyApplication" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

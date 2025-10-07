@@ -98,7 +98,7 @@ fun AuthScreen(
         ) {
             // App Logo and Welcome
             Icon(
-                imageVector = Icons.Default.CameraAlt,
+                imageVector = Icons.Default.Add,
                 contentDescription = "SkanniApp Logo",
                 modifier = Modifier.size(80.dp),
                 tint = MaterialTheme.colorScheme.onPrimary
@@ -204,19 +204,19 @@ fun AuthScreen(
                 Spacer(modifier = Modifier.height(12.dp))
                 
                 BenefitItem(
-                    icon = Icons.Default.Cloud,
+                    icon = Icons.Default.Star,
                     text = "Cloud backup af öllum reikningunum þínum"
                 )
                 BenefitItem(
-                    icon = Icons.Default.Sync,
+                    icon = Icons.Default.Refresh,
                     text = "Samstilling milli allra tækjanna þinna"
                 )
                 BenefitItem(
-                    icon = Icons.Default.Security,
+                    icon = Icons.Default.Lock,
                     text = "Örugg geymsla með Google Security"
                 )
                 BenefitItem(
-                    icon = Icons.Default.Analytics,
+                    icon = Icons.Default.Info,
                     text = "Útgjaldagreining og tölfræði"
                 )
             }
@@ -315,7 +315,7 @@ fun UserProfileCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.Verified,
+                    imageVector = Icons.Default.Check,
                     contentDescription = "Verified",
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.primary
@@ -334,7 +334,7 @@ fun UserProfileCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.Cloud,
+                    imageVector = Icons.Default.Star,
                     contentDescription = "Cloud",
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.primary
@@ -361,7 +361,7 @@ fun UserProfileCard(
                 )
             ) {
                 Icon(
-                    imageVector = Icons.Default.Logout,
+                    imageVector = Icons.Default.ExitToApp,
                     contentDescription = "Sign out",
                     modifier = Modifier.size(16.dp)
                 )

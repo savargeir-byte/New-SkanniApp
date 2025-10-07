@@ -10,7 +10,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:368139082393:android:1bb8d9c8b776dacd8d7608",
         "android_client_info": {
-          "package_name": "com.example.notescanner"
+          "package_name": "io.github.saeargeir.skanniapp"
         }
       },
       "oauth_client": [
@@ -18,8 +18,8 @@
           "client_id": "368139082393-eo37c589tii7dqu2thq30lkpmik1rv53.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.example.notescanner",
-            "certificate_hash": "d96636a1ae8ed5d6d226a7f58d096165fc571a4d"
+            "package_name": "io.github.saeargeir.skanniapp",
+            "certificate_hash": "dc3c321668622a6283a4124b910fb99d8c9edb99"
           }
         },
         {

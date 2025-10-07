@@ -3,7 +3,7 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24"
-    android:tint="?attr/colorOnSurface">
+    android:tint="@android:color/black">
     
     <!-- Receipt shape -->
     <path
