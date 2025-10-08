@@ -10,5 +10,6 @@
             "source": "PowerShell",
             "icon": "terminal-powershell"
         }
-    }
+    },
+    "git.ignoreLimitWarning": true
 }

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="512dp"
+    android:height="512dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    
+    <!-- Dark green rounded background -->
+    <path
+        android:fillColor="#1B5E20"
+        android:pathData="M128,0 L384,0 Q512,0 512,128 L512,384 Q512,512 384,512 L128,512 Q0,512 0,384 L0,128 Q0,0 128,0 Z" />
+    
+    <!-- Large white "S" -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M180,140 Q220,140 250,170 Q280,200 280,240 Q280,260 270,275 Q260,290 240,300 Q260,310 270,325 Q280,340 280,360 Q280,400 250,430 Q220,460 180,460 L160,460 Q120,460 90,430 Q60,400 60,360 L100,360 Q100,380 115,395 Q130,410 150,410 L180,410 Q200,410 215,395 Q230,380 230,360 Q230,340 215,325 Q200,310 180,310 L160,310 Q120,310 90,280 Q60,250 60,210 Q60,170 90,140 Q120,110 160,110 L180,110 Q200,110 215,125 Q230,140 230,160 L190,160 Q190,150 185,145 Q180,140 170,140 Q160,140 155,145 Q150,150 150,160 Q150,170 155,175 Q160,180 170,180 L180,180 Q190,180 195,175 Q200,170 200,160 Q200,150 195,145 Q190,140 180,140 Z" />
+    
+    <!-- Small receipt/document icon in corner -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M350,350 L420,350 L420,420 L350,420 Z"
+        android:strokeWidth="2"
+        android:strokeColor="#FFFFFF" />
+    
+    <!-- Receipt torn edge -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M350,350 L355,345 L360,350 L365,345 L370,350 L375,345 L380,350 L385,345 L390,350 L395,345 L400,350 L405,345 L410,350 L415,345 L420,350 L420,355 L350,355 Z" />
+    
+    <!-- Receipt lines -->
+    <path
+        android:pathData="M360,365 L410,365"
+        android:strokeWidth="2"
+        android:strokeColor="#1B5E20" />
+    <path
+        android:pathData="M360,375 L405,375"
+        android:strokeWidth="2"
+        android:strokeColor="#1B5E20" />
+    <path
+        android:pathData="M360,385 L400,385"
+        android:strokeWidth="2"
+        android:strokeColor="#1B5E20" />
+    <path
+        android:pathData="M360,395 L395,395"
+        android:strokeWidth="2"
+        android:strokeColor="#1B5E20" />
+    
+</vector>

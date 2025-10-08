@@ -46,11 +46,10 @@ fun SplashScreen() {
         contentAlignment = Alignment.Center
     ) {
         Image(
-            painter = painterResource(id = R.drawable.splash_logo),
-            contentDescription = "SkanniApp Logo",
+            painter = painterResource(id = R.drawable.splash_logo_new),
+            contentDescription = "SkanniApp Splash Logo",
             modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp), // Minimal padding to fill most of the screen
+                .size(200.dp), // Fixed size for better presentation
             contentScale = ContentScale.Fit
         )
     }

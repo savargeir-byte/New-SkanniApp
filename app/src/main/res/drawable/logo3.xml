@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    
+    <!-- Green background -->
+    <path
+        android:fillColor="#2E7D32"
+        android:pathData="M3,3 L21,3 C21.55,3 22,3.45 22,4 L22,20 C22,20.55 21.55,21 21,21 L3,21 C2.45,21 2,20.55 2,20 L2,4 C2,3.45 2.45,3 3,3 Z"/>
+    
+    <!-- Scanner/Document icon -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M6,6 L18,6 C18.55,6 19,6.45 19,7 L19,17 C19,17.55 18.55,18 18,18 L6,18 C5.45,18 5,17.55 5,17 L5,7 C5,6.45 5.45,6 6,6 Z"/>
+    
+    <!-- Text lines -->
+    <path
+        android:fillColor="#2E7D32"
+        android:pathData="M7,9 L17,9 C17.28,9 17.5,9.22 17.5,9.5 C17.5,9.78 17.28,10 17,10 L7,10 C6.72,10 6.5,9.78 6.5,9.5 C6.5,9.22 6.72,9 7,9 Z"/>
+    <path
+        android:fillColor="#2E7D32"
+        android:pathData="M7,11.5 L15,11.5 C15.28,11.5 15.5,11.72 15.5,12 C15.5,12.28 15.28,12.5 15,12.5 L7,12.5 C6.72,12.5 6.5,12.28 6.5,12 C6.5,11.72 6.72,11.5 7,11.5 Z"/>
+    <path
+        android:fillColor="#2E7D32"
+        android:pathData="M7,14 L13,14 C13.28,14 13.5,14.22 13.5,14.5 C13.5,14.78 13.28,15 13,15 L7,15 C6.72,15 6.5,14.78 6.5,14.5 C6.5,14.22 6.72,14 7,14 Z"/>
+</vector>
