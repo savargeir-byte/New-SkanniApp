@@ -52,10 +52,12 @@ class MainActivity : ComponentActivity() {
         var showAuth by remember { mutableStateOf(false) }
         var navScreen by remember { mutableStateOf("home") }
         var showScanner by remember { mutableStateOf(false) }
+        var showBatchScanner by remember { mutableStateOf(false) }
         var ocrText by remember { mutableStateOf<String?>(null) }
         var currentInvoice by remember { mutableStateOf<io.github.saeargeir.skanniapp.model.InvoiceRecord?>(null) }
         var selectedMonth by remember { mutableStateOf(java.time.YearMonth.now()) }
         var notes by remember { mutableStateOf(invoiceStore.loadAll()) }
+        var currentBatchData by remember { mutableStateOf<io.github.saeargeir.skanniapp.data.BatchScanData?>(null) }
         val currentUser = auth?.currentUser
 
         // Function to save notes and update state
@@ -90,6 +92,15 @@ class MainActivity : ComponentActivity() {
                 authService = authService,
                 onAuthSuccess = { showAuth = false }
             )
+        } else if (showBatchScanner) {
+            io.github.saeargeir.skanniapp.ui.scanner.BatchScannerScreen(
+                onComplete = { batchData ->
+                    currentBatchData = batchData
+                    showBatchScanner = false
+                    navScreen = "batch_management"
+                },
+                onClose = { showBatchScanner = false }
+            )
         } else if (showScanner) {
             InvoiceScannerScreen(
                 onClose = { showScanner = false },
@@ -121,6 +132,7 @@ class MainActivity : ComponentActivity() {
                 onOverview = { navScreen = "overview" },
                 onNotes = { navScreen = "notes" },
                 onScan = { showScanner = true },
+                onBatchScan = { showBatchScanner = true },
                 onSendExcel = {
                     val csvFile = CsvExporter.exportMonthlyReport(this@MainActivity, notes, selectedMonth.year, selectedMonth.monthValue)
                     if (csvFile != null) CsvExporter.sendViaEmail(this@MainActivity, csvFile)
@@ -179,6 +191,41 @@ class MainActivity : ComponentActivity() {
                     if (csvFile != null) CsvExporter.sendViaEmail(this@MainActivity, csvFile)
                 }
             )
+            "batch_management" -> {
+                if (currentBatchData != null) {
+                    io.github.saeargeir.skanniapp.ui.batch.BatchManagementScreen(
+                        batchData = currentBatchData!!,
+                        processedInvoices = emptyList(), // Would be populated after processing
+                        isProcessing = false,
+                        progress = null,
+                        onBackToScan = { showBatchScanner = true },
+                        onProcessBatch = {
+                            // TODO: Implement batch processing
+                            Toast.makeText(this@MainActivity, "Batch processing byrjar...", Toast.LENGTH_SHORT).show()
+                        },
+                        onRemoveReceipt = { receiptId ->
+                            currentBatchData = currentBatchData?.copy(
+                                scannedReceipts = currentBatchData!!.scannedReceipts.filterNot { it.id == receiptId }.toMutableList()
+                            )
+                        },
+                        onEditReceipt = { receiptId ->
+                            Toast.makeText(this@MainActivity, "Edit receipt: $receiptId", Toast.LENGTH_SHORT).show()
+                        },
+                        onBulkExport = {
+                            Toast.makeText(this@MainActivity, "Bulk export ekki ennþá útfært", Toast.LENGTH_SHORT).show()
+                        },
+                        onComplete = {
+                            navScreen = "home"
+                            currentBatchData = null
+                        },
+                        onRetryFailed = {
+                            Toast.makeText(this@MainActivity, "Reyni aftur...", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                } else {
+                    navScreen = "home"
+                }
+            }
         }
 
         if (ocrText != null) {

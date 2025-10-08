@@ -30,6 +30,17 @@ data class BatchScanData(
     fun getTotalAmount(): Double = scannedReceipts.sumOf { it.totalAmount ?: 0.0 }
     
     fun markCompleted(): BatchScanData = copy(isCompleted = true)
+    
+    // Computed properties for UI
+    val progressPercentage: Float
+        get() = if (scannedReceipts.isEmpty()) 0f else {
+            scannedReceipts.count { it.processingStatus == ProcessingStatus.COMPLETED }.toFloat() / scannedReceipts.size
+        }
+    
+    val successRate: Float
+        get() = if (scannedReceipts.isEmpty()) 0f else {
+            scannedReceipts.count { it.processingStatus == ProcessingStatus.COMPLETED }.toFloat() / scannedReceipts.size
+        }
 }
 
 /**
