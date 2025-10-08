@@ -3,7 +3,7 @@ apply plugin: 'org.jetbrains.kotlin.android'
 apply plugin: 'com.google.gms.google-services'
 
 // Redirect build outputs to avoid Windows file lock issues on default build dir
-buildDir = 'build-app'
+buildDir = "build_android${System.currentTimeMillis()}"
 
 android {
     namespace 'io.github.saeargeir.skanniapp'
