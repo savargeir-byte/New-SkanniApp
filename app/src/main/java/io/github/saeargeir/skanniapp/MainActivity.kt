@@ -137,7 +137,14 @@ class MainActivity : ComponentActivity() {
                     val csvFile = CsvExporter.exportMonthlyReport(this@MainActivity, notes, selectedMonth.year, selectedMonth.monthValue)
                     if (csvFile != null) CsvExporter.sendViaEmail(this@MainActivity, csvFile)
                 },
-                onMenu = { /* TODO: menu actions like sign out */ }
+                onMenu = { /* TODO: menu actions like sign out */ },
+                onLogout = { 
+                    // Clear all data and go back to login/home
+                    updateNotes(emptyList())
+                    navScreen = "home"
+                    // You can add authentication logout logic here
+                    auth?.signOut()
+                }
             )
             "notes" -> io.github.saeargeir.skanniapp.ui.NoteListScreen(
                 notes = notes.filter { it.date.startsWith(selectedMonth.toString()) },
