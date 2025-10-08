@@ -19,12 +19,15 @@ import io.github.saeargeir.skanniapp.ui.auth.AuthScreen
 import io.github.saeargeir.skanniapp.ui.theme.SkanniAppTheme
 import io.github.saeargeir.skanniapp.ui.scanner.InvoiceScannerScreen
 import io.github.saeargeir.skanniapp.utils.CsvExporter
+import io.github.saeargeir.skanniapp.utils.IcelandicInvoiceParser
+import io.github.saeargeir.skanniapp.data.InvoiceStore
 import java.time.LocalDate
 import java.util.*
 
 class MainActivity : ComponentActivity() {
     private var auth: FirebaseAuth? = null
     private lateinit var authService: FirebaseAuthService
+    private lateinit var invoiceStore: InvoiceStore
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,6 +35,9 @@ class MainActivity : ComponentActivity() {
         // Initialize Firebase Auth
         auth = FirebaseAuth.getInstance()
         authService = FirebaseAuthService(this)
+        
+        // Initialize InvoiceStore for persistent data
+        invoiceStore = InvoiceStore(this)
         
         setContent {
             SkanniAppTheme {
@@ -49,8 +55,26 @@ class MainActivity : ComponentActivity() {
         var ocrText by remember { mutableStateOf<String?>(null) }
         var currentInvoice by remember { mutableStateOf<io.github.saeargeir.skanniapp.model.InvoiceRecord?>(null) }
         var selectedMonth by remember { mutableStateOf(java.time.YearMonth.now()) }
-        var notes by remember { mutableStateOf(listOf<io.github.saeargeir.skanniapp.model.InvoiceRecord>()) }
+        var notes by remember { mutableStateOf(invoiceStore.loadAll()) }
         val currentUser = auth?.currentUser
+
+        // Function to save notes and update state
+        fun updateNotes(newNotes: List<io.github.saeargeir.skanniapp.model.InvoiceRecord>) {
+            invoiceStore.saveAll(newNotes)
+            notes = newNotes
+        }
+
+        // Function to add single note
+        fun addNote(note: io.github.saeargeir.skanniapp.model.InvoiceRecord) {
+            invoiceStore.add(note)
+            notes = invoiceStore.loadAll()
+        }
+
+        // Function to delete note
+        fun deleteNote(noteId: Long) {
+            invoiceStore.deleteById(noteId)
+            notes = invoiceStore.loadAll()
+        }
 
         // Check if user is signed in
         LaunchedEffect(currentUser) {
@@ -70,22 +94,23 @@ class MainActivity : ComponentActivity() {
             InvoiceScannerScreen(
                 onClose = { showScanner = false },
                 onTextDetected = { text ->
-                    val lines = text.split("\n")
-                    val amount = lines.find { it.contains("kr") || it.contains("ISK") }?.let { line ->
-                        Regex("\\d+[.,]\\d+").find(line)?.value?.replace(",", ".")?.toDoubleOrNull()
-                    } ?: 0.0
+                    // Use improved Icelandic invoice parser
+                    val parsed = IcelandicInvoiceParser.parseInvoiceText(text)
+                    
                     val invoice = io.github.saeargeir.skanniapp.model.InvoiceRecord(
                         id = System.currentTimeMillis(),
                         date = LocalDate.now().toString(),
                         monthKey = LocalDate.now().toString().substring(0, 7),
-                        vendor = "Óþekkt seljandi",
-                        amount = amount,
-                        vat = amount * 0.24 / 1.24,
+                        vendor = parsed.vendor,
+                        amount = parsed.amount,
+                        vat = parsed.vat,
                         imagePath = "",
-                        ocrText = text
+                        invoiceNumber = parsed.invoiceNumber,
+                        ocrText = text,
+                        classificationConfidence = parsed.confidence.toDouble()
                     )
                     currentInvoice = invoice
-                    notes = notes + invoice
+                    addNote(invoice)
                     ocrText = text
                     showScanner = false
                     navScreen = "form"
@@ -133,7 +158,9 @@ class MainActivity : ComponentActivity() {
                 onShare = { /* TODO: implement share */ },
                 onOpenImage = { /* TODO: implement open image */ },
                 onDelete = {
-                    notes = notes.filter { it.id != currentInvoice?.id }
+                    currentInvoice?.let { invoice ->
+                        deleteNote(invoice.id)
+                    }
                     navScreen = "notes"
                 },
                 onViewOverview = { navScreen = "overview" },
