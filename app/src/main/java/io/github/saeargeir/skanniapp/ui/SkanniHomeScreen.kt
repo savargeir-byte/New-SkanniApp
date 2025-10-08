@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.saeargeir.skanniapp.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -241,6 +242,30 @@ fun SkanniHomeScreen(
             }
 
             Spacer(modifier = Modifier.weight(1f))
+
+            // Ice Veflausnir branding
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Powered by",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.6f)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Image(
+                    painter = painterResource(id = R.drawable.ice_veflausnir_logo),
+                    contentDescription = "Ice Veflausnir",
+                    modifier = Modifier
+                        .height(24.dp)
+                        .width(80.dp),
+                    contentScale = ContentScale.Fit
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Menu button at bottom
             TextButton(
