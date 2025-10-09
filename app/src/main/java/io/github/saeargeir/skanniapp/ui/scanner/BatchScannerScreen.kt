@@ -4,7 +4,9 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.util.Log
+import android.util.Size
 import androidx.camera.core.*
+import androidx.camera.camera2.interop.Camera2Interop
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.*
@@ -43,6 +45,7 @@ import io.github.saeargeir.skanniapp.utils.IcelandicInvoiceParser
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
 import java.util.concurrent.Executors
+import android.hardware.camera2.CaptureRequest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,6 +68,7 @@ fun BatchScannerScreen(
     val recognizer = remember { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
     var torchEnabled by remember { mutableStateOf(false) }
     var cameraControl by remember { mutableStateOf<CameraControl?>(null) }
+    var imageCaptureRef by remember { mutableStateOf<ImageCapture?>(null) }
     
     // Live scanning feedback
     var liveStatus by remember { mutableStateOf("Leita að reikningi...") }
@@ -223,6 +227,7 @@ private fun CaptureMode(
 ) {
     val context = LocalContext.current
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
+    var imageCaptureRef by remember { mutableStateOf<ImageCapture?>(null) }
     
     Box(modifier = modifier.fillMaxSize()) {
         // Camera Preview
@@ -236,17 +241,36 @@ private fun CaptureMode(
                 cameraProviderFuture.addListener({
                     val cameraProvider = cameraProviderFuture.get()
                     
-                    val preview = Preview.Builder().build().apply {
+                    // Configure Preview with Camera2 interop for continuous AF
+                    val previewBuilder = Preview.Builder()
+                    Camera2Interop.Extender(previewBuilder).apply {
+                        setCaptureRequestOption(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
+                        setCaptureRequestOption(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+                        setCaptureRequestOption(CaptureRequest.CONTROL_AWB_MODE, CaptureRequest.CONTROL_AWB_MODE_AUTO)
+                    }
+                    val preview = previewBuilder.build().apply {
                         setSurfaceProvider(previewView.surfaceProvider)
                     }
                     
-                    val imageCapture = ImageCapture.Builder()
+                    // Configure ImageCapture with interop and prioritize quality for batch captures
+                    val imageCaptureBuilder = ImageCapture.Builder()
                         .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-                        .build()
+                    Camera2Interop.Extender(imageCaptureBuilder).apply {
+                        setCaptureRequestOption(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
+                        setCaptureRequestOption(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+                        setCaptureRequestOption(CaptureRequest.CONTROL_AWB_MODE, CaptureRequest.CONTROL_AWB_MODE_AUTO)
+                    }
+                    val imageCapture = imageCaptureBuilder.build().also { imageCaptureRef = it }
                     
-                    val analysis = ImageAnalysis.Builder()
+                    val analysisBuilder = ImageAnalysis.Builder()
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                        .build()
+                        .setTargetResolution(Size(1280, 720))
+                    Camera2Interop.Extender(analysisBuilder).apply {
+                        setCaptureRequestOption(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
+                        setCaptureRequestOption(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+                        setCaptureRequestOption(CaptureRequest.CONTROL_AWB_MODE, CaptureRequest.CONTROL_AWB_MODE_AUTO)
+                    }
+                    val analysis = analysisBuilder.build()
                     
                     // Real-time analysis for edge detection and quality
                     var lastAnalyzeTs = 0L
@@ -286,6 +310,7 @@ private fun CaptureMode(
                             analysis
                         )
                         onCameraReady(camera.cameraControl)
+                        Log.d("BatchScanner", "Camera bound with target analysis resolution 1280x720 and continuous AF enabled")
                     } catch (e: Exception) {
                         Log.e("BatchScanner", "Camera binding failed", e)
                     }
@@ -303,9 +328,33 @@ private fun CaptureMode(
             torchEnabled = torchEnabled,
             onTorchToggle = onTorchToggle,
             onCapture = {
-                // Simulate capture - in real implementation would use ImageCapture
-                val dummyUri = Uri.parse("content://dummy_${System.currentTimeMillis()}")
-                onCaptureReceipt(dummyUri, 0.8f, true)
+                val capture = imageCaptureRef
+                if (capture == null) {
+                    Log.w("BatchScanner", "ImageCapture not ready")
+                    return@ProfessionalCameraOverlay
+                }
+                val values = android.content.ContentValues().apply {
+                    put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, "skanni_batch_" + System.currentTimeMillis() + ".jpg")
+                    put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+                }
+                val output = ImageCapture.OutputFileOptions.Builder(
+                    context.contentResolver,
+                    android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    values
+                ).build()
+                capture.takePicture(
+                    output,
+                    ContextCompat.getMainExecutor(context),
+                    object: ImageCapture.OnImageSavedCallback {
+                        override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                            val uri = outputFileResults.savedUri ?: Uri.parse("")
+                            onCaptureReceipt(uri, 0.8f, true)
+                        }
+                        override fun onError(exception: ImageCaptureException) {
+                            Log.e("BatchScanner", "Capture error", exception)
+                        }
+                    }
+                )
             }
         )
         

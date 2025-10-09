@@ -105,7 +105,7 @@ class MainActivity : ComponentActivity() {
         } else if (showScanner) {
             InvoiceScannerScreen(
                 onClose = { showScanner = false },
-                onTextDetected = { text ->
+                onResult = { text, imageUri ->
                     // Use improved Icelandic invoice parser
                     val parsed = IcelandicInvoiceParser.parseInvoiceText(text)
                     
@@ -116,7 +116,7 @@ class MainActivity : ComponentActivity() {
                         vendor = parsed.vendor,
                         amount = parsed.amount,
                         vat = parsed.vat,
-                        imagePath = "",
+                        imagePath = imageUri?.toString() ?: "",
                         invoiceNumber = parsed.invoiceNumber,
                         ocrText = text,
                         classificationConfidence = parsed.confidence.toDouble()
@@ -191,8 +191,44 @@ class MainActivity : ComponentActivity() {
             "form" -> io.github.saeargeir.skanniapp.ui.InvoiceFormScreen(
                 invoice = currentInvoice,
                 onBack = { navScreen = "notes" },
-                onShare = { /* TODO: implement share */ },
-                onOpenImage = { /* TODO: implement open image */ },
+                onShare = {
+                    val inv = currentInvoice
+                    if (inv != null) {
+                        val title = (inv.vendor.ifBlank { "Reikningur" }) + " - " + inv.date
+                        val text = inv.ocrText ?: ("Seljandi: ${inv.vendor}\nUpphæð: ${inv.amount} kr\nVSK: ${inv.vat}\nNr: ${inv.invoiceNumber ?: ""}")
+                        val pdfUri = io.github.saeargeir.skanniapp.utils.PdfUtils.saveTextAsPdf(this@MainActivity, title, text)
+                        if (pdfUri != null) {
+                            try {
+                                val share = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                    type = "application/pdf"
+                                    putExtra(android.content.Intent.EXTRA_STREAM, pdfUri)
+                                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                startActivity(android.content.Intent.createChooser(share, "Deila PDF"))
+                            } catch (e: Exception) {
+                                Toast.makeText(this@MainActivity, "Gat ekki deilt PDF: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        } else {
+                            Toast.makeText(this@MainActivity, "Gat ekki vistað PDF", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                },
+                onOpenImage = {
+                    val path = currentInvoice?.imagePath
+                    if (!path.isNullOrBlank()) {
+                        try {
+                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                                setDataAndType(android.net.Uri.parse(path), "image/*")
+                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            startActivity(intent)
+                        } catch (e: Exception) {
+                            Toast.makeText(this@MainActivity, "Gat ekki opnað mynd: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    } else {
+                        Toast.makeText(this@MainActivity, "Engin mynd tengd við þessa færslu", Toast.LENGTH_SHORT).show()
+                    }
+                },
                 onDelete = {
                     currentInvoice?.let { invoice ->
                         deleteNote(invoice.id)
