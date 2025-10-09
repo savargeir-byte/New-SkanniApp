@@ -20,6 +20,7 @@ import io.github.saeargeir.skanniapp.ui.theme.SkanniAppTheme
 import io.github.saeargeir.skanniapp.ui.scanner.InvoiceScannerScreen
 import io.github.saeargeir.skanniapp.utils.CsvExporter
 import io.github.saeargeir.skanniapp.utils.IcelandicInvoiceParser
+import io.github.saeargeir.skanniapp.utils.JsonExporter
 import io.github.saeargeir.skanniapp.data.InvoiceStore
 import java.time.LocalDate
 import java.util.*
@@ -144,6 +145,14 @@ class MainActivity : ComponentActivity() {
                     navScreen = "home"
                     // You can add authentication logout logic here
                     auth?.signOut()
+                },
+                onExportCsv = {
+                    val csvFile = CsvExporter.exportMonthlyReport(this@MainActivity, notes, selectedMonth.year, selectedMonth.monthValue)
+                    if (csvFile != null) CsvExporter.shareViaCsv(this@MainActivity, csvFile)
+                },
+                onExportJson = {
+                    val jsonFile = JsonExporter.exportMonthlyReport(this@MainActivity, notes, selectedMonth.year, selectedMonth.monthValue)
+                    if (jsonFile != null) JsonExporter.share(this@MainActivity, jsonFile)
                 }
             )
             "notes" -> io.github.saeargeir.skanniapp.ui.NoteListScreen(
@@ -159,7 +168,11 @@ class MainActivity : ComponentActivity() {
                 onSortBy = { /* TODO: implement sort */ },
                 onNoteClick = { invoice -> currentInvoice = invoice; navScreen = "form" },
                 onOverview = { navScreen = "overview" },
-                onNotes = { navScreen = "notes" }
+                onNotes = { navScreen = "notes" },
+                onExportJson = {
+                    val jsonFile = JsonExporter.exportMonthlyReport(this@MainActivity, notes, selectedMonth.year, selectedMonth.monthValue)
+                    if (jsonFile != null) JsonExporter.share(this@MainActivity, jsonFile)
+                }
             )
             "overview" -> io.github.saeargeir.skanniapp.ui.OverviewScreen(
                 notes = notes,
@@ -169,6 +182,10 @@ class MainActivity : ComponentActivity() {
                 onExportCsv = {
                     val csvFile = CsvExporter.exportMonthlyReport(this@MainActivity, notes, selectedMonth.year, selectedMonth.monthValue)
                     if (csvFile != null) CsvExporter.shareViaCsv(this@MainActivity, csvFile)
+                },
+                onExportJson = {
+                    val jsonFile = JsonExporter.exportMonthlyReport(this@MainActivity, notes, selectedMonth.year, selectedMonth.monthValue)
+                    if (jsonFile != null) JsonExporter.share(this@MainActivity, jsonFile)
                 }
             )
             "form" -> io.github.saeargeir.skanniapp.ui.InvoiceFormScreen(
@@ -196,6 +213,10 @@ class MainActivity : ComponentActivity() {
                 onSendEmail = {
                     val csvFile = CsvExporter.exportMonthlyReport(this@MainActivity, notes, selectedMonth.year, selectedMonth.monthValue)
                     if (csvFile != null) CsvExporter.sendViaEmail(this@MainActivity, csvFile)
+                },
+                onExportJson = {
+                    val jsonFile = JsonExporter.exportMonthlyReport(this@MainActivity, notes, selectedMonth.year, selectedMonth.monthValue)
+                    if (jsonFile != null) JsonExporter.share(this@MainActivity, jsonFile)
                 }
             )
             "batch_management" -> {
