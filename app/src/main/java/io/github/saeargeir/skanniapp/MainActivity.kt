@@ -126,7 +126,14 @@ class MainActivity : ComponentActivity() {
                     addNote(invoice)
                     ocrText = text
                     showScanner = false
-                    navScreen = "form"
+                    
+                    // Show success message with parsed information
+                    val vendorText = if (parsed.vendor.isNotBlank()) parsed.vendor else "Óþekktur seljandi"
+                    val amountText = if (parsed.amount > 0) "${parsed.amount} kr" else "Óþekkt upphæð"
+                    Toast.makeText(this@MainActivity, "Reikningur skráður: $vendorText - $amountText", Toast.LENGTH_LONG).show()
+                    
+                    // Go back to notes screen to see the new invoice
+                    navScreen = "notes"
                 }
             )
         } else when (navScreen) {
@@ -173,6 +180,61 @@ class MainActivity : ComponentActivity() {
                 onExportJson = {
                     val jsonFile = JsonExporter.exportMonthlyReport(this@MainActivity, notes, selectedMonth.year, selectedMonth.monthValue)
                     if (jsonFile != null) JsonExporter.share(this@MainActivity, jsonFile)
+                },
+                onOpenImage = {
+                    // If there's a current invoice, show its image
+                    if (currentInvoice != null) {
+                        val path = currentInvoice?.imagePath
+                        if (!path.isNullOrBlank()) {
+                            try {
+                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                                    setDataAndType(android.net.Uri.parse(path), "image/*")
+                                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                startActivity(intent)
+                            } catch (e: Exception) {
+                                Toast.makeText(this@MainActivity, "Gat ekki opnað mynd: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        } else {
+                            Toast.makeText(this@MainActivity, "Engin mynd tengd við þessa færslu", Toast.LENGTH_SHORT).show()
+                        }
+                    } else {
+                        // If no invoice selected, take a new picture
+                        showScanner = true
+                    }
+                },
+                onShare = {
+                    val inv = currentInvoice
+                    if (inv != null) {
+                        val title = (inv.vendor.ifBlank { "Reikningur" }) + " - " + inv.date
+                        val text = inv.ocrText ?: ("Seljandi: ${inv.vendor}\nUpphæð: ${inv.amount} kr\nVSK: ${inv.vat}\nNr: ${inv.invoiceNumber ?: ""}")
+                        val pdfUri = io.github.saeargeir.skanniapp.utils.PdfUtils.saveTextAsPdf(this@MainActivity, title, text)
+                        if (pdfUri != null) {
+                            try {
+                                val share = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                    type = "application/pdf"
+                                    putExtra(android.content.Intent.EXTRA_STREAM, pdfUri)
+                                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                startActivity(android.content.Intent.createChooser(share, "Deila PDF"))
+                            } catch (e: Exception) {
+                                Toast.makeText(this@MainActivity, "Gat ekki deilt PDF: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        } else {
+                            Toast.makeText(this@MainActivity, "Gat ekki vistað PDF", Toast.LENGTH_SHORT).show()
+                        }
+                    } else {
+                        Toast.makeText(this@MainActivity, "Engin nóta valin", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onDelete = {
+                    currentInvoice?.let { invoice ->
+                        deleteNote(invoice.id)
+                    }
+                },
+                onSignOut = {
+                    auth?.signOut()
+                    showAuth = true
                 }
             )
             "overview" -> io.github.saeargeir.skanniapp.ui.OverviewScreen(
