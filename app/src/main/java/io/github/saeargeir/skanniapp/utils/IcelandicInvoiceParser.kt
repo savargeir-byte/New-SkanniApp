@@ -61,10 +61,16 @@ object IcelandicInvoiceParser {
         Pattern.compile("total:?\\s*([0-9., ]+)\\s*kr", Pattern.CASE_INSENSITIVE),
         Pattern.compile("sum:?\\s*([0-9., ]+)\\s*kr", Pattern.CASE_INSENSITIVE),
         
-        // Reversed patterns (amount before label)
+        // Reversed patterns (amount before label) - IMPROVED FOR ICELANDIC RECEIPTS
+        Pattern.compile("([0-9]{1,2}\\.[0-9]{3})\\s*samtals", Pattern.CASE_INSENSITIVE),
+        Pattern.compile("([0-9]{1,3}\\.[0-9]{3})\\s*alls", Pattern.CASE_INSENSITIVE),
         Pattern.compile("([0-9., ]+)\\s*kr\\s*samtals", Pattern.CASE_INSENSITIVE),
         Pattern.compile("([0-9., ]+)\\s*kr\\s*alls", Pattern.CASE_INSENSITIVE),
         Pattern.compile("([0-9., ]+)\\s*kr\\s*total", Pattern.CASE_INSENSITIVE),
+        
+        // Stand-alone amounts on line (common in Icelandic receipts)
+        Pattern.compile("^\\s*([0-9]{1,3}\\.[0-9]{3})\\s*$", Pattern.MULTILINE),
+        Pattern.compile("^\\s*([0-9]{1,2},[0-9]{3})\\s*$", Pattern.MULTILINE),
         
         // ISK variants
         Pattern.compile("samtals\\s*isk:?\\s*([0-9., ]+)", Pattern.CASE_INSENSITIVE),
@@ -237,6 +243,7 @@ object IcelandicInvoiceParser {
             private fun findAmount(text: String): Double {
         val amounts = mutableListOf<Pair<Double, String>>()
         
+        // First try the regex patterns
         for ((index, pattern) in amountPatterns.withIndex()) {
             val matcher = pattern.matcher(text)
             if (matcher.find()) {
@@ -249,6 +256,33 @@ object IcelandicInvoiceParser {
                         amounts.add(Pair(parsed, amountStr))
                     } else {
                         Log.d(TAG, "  -> Failed to parse or invalid")
+                    }
+                }
+            }
+        }
+        
+        // ADDITIONAL LOGIC: Look for standalone amounts on lines (common in Icelandic receipts)
+        val lines = text.split("\\n").map { it.trim() }
+        for ((lineIndex, line) in lines.withIndex()) {
+            // Look for lines that are likely total amounts
+            if (line.matches(Regex("^\\s*[0-9]{1,3}\\.[0-9]{3}\\s*$")) || 
+                line.matches(Regex("^\\s*[0-9]{1,2},[0-9]{3}\\s*$")) ||
+                line.matches(Regex("^\\s*[0-9]{4,6}\\s*$"))) {
+                
+                // Check if this line is near "Samtals" or similar
+                val contextLines = (maxOf(0, lineIndex-2)..minOf(lines.size-1, lineIndex+2))
+                val hasContext = contextLines.any { i -> 
+                    lines[i].contains("samtals", ignoreCase = true) ||
+                    lines[i].contains("alls", ignoreCase = true) ||
+                    lines[i].contains("total", ignoreCase = true) ||
+                    lines[i].contains("greiðsla", ignoreCase = true)
+                }
+                
+                if (hasContext) {
+                    val parsed = parseIcelandicNumber(line)
+                    if (parsed != null && parsed > 0) {
+                        Log.d(TAG, "Standalone amount found near total context: '$line' -> $parsed kr")
+                        amounts.add(Pair(parsed, line))
                     }
                 }
             }
@@ -270,9 +304,10 @@ object IcelandicInvoiceParser {
         return result
     }
     
-        /**
+    /**
      * Parse Icelandic number format
      * Handles formats like: 1.234,56 or 1,234.56 or 1234.56 or 1234,56 or 1.234 or 1,234
+     * IMPROVED: Better handling of Icelandic receipts where dot is thousands separator
      */
     private fun parseIcelandicNumber(numStr: String): Double? {
         if (numStr.isBlank()) return null
@@ -295,6 +330,22 @@ object IcelandicInvoiceParser {
                 // No separators - just a number
                 commaCount == 0 && dotCount == 0 -> noSpaces.toDouble()
                 
+                // ICELANDIC RECEIPTS: Single dot with exactly 3 digits after = thousands separator
+                dotCount == 1 && commaCount == 0 -> {
+                    val parts = noSpaces.split('.')
+                    if (parts.size == 2 && parts[1].length == 3 && parts[0].length <= 3) {
+                        // This is Icelandic format: 2.979 = 2979 kr
+                        Log.v(TAG, "  Detected Icelandic thousands format: ${parts[0]}.${parts[1]} -> ${parts[0]}${parts[1]}")
+                        (parts[0] + parts[1]).toDouble()
+                    } else if (parts[1].length <= 2) {
+                        // Decimal separator: 1234.56
+                        parts[0].toDouble() + (parts[1].toDouble() / 100.0)
+                    } else {
+                        // Thousands separator: 1.234
+                        noSpaces.replace(".", "").toDouble()
+                    }
+                }
+                
                 // Only comma - could be decimal separator or thousands
                 commaCount == 1 && dotCount == 0 -> {
                     val parts = noSpaces.split(',')
@@ -304,18 +355,6 @@ object IcelandicInvoiceParser {
                     } else {
                         // Thousands separator: 1,234
                         noSpaces.replace(",", "").toDouble()
-                    }
-                }
-                
-                // Only dot - could be decimal separator or thousands
-                dotCount == 1 && commaCount == 0 -> {
-                    val parts = noSpaces.split('.')
-                    if (parts[1].length <= 2) {
-                        // Decimal separator: 1234.56
-                        parts[0].toDouble() + (parts[1].toDouble() / 100.0)
-                    } else {
-                        // Thousands separator: 1.234
-                        noSpaces.replace(".", "").toDouble()
                     }
                 }
                 
@@ -340,7 +379,7 @@ object IcelandicInvoiceParser {
                 else -> noSpaces.replace(",", ".").toDouble()
             }
             
-                        // Sanity check - Icelandic receipts typically don't have decimals (amounts in whole króna)
+            // Sanity check - Icelandic receipts typically don't have decimals (amounts in whole króna)
             // If we got a very small number, it's likely a parsing error
             val finalResult = if (result < 1.0 && result > 0) {
                 // Likely misinterpreted thousands separator as decimal
@@ -415,6 +454,7 @@ object IcelandicInvoiceParser {
     
     /**
      * Clean common OCR errors in text
+     * IMPROVED: Better handling of Icelandic receipt OCR errors
      */
     private fun cleanOcrText(text: String): String {
         var cleaned = text
@@ -428,7 +468,10 @@ object IcelandicInvoiceParser {
             // S as 5 in number context
             Regex("(\\d+)[Ss](\\d+)") to "$15$2",
             // Zero as O in text (reverse of above)
-            Regex("([A-Z]+)0([A-Z]+)") to "$1O$2"
+            Regex("([A-Z]+)0([A-Z]+)") to "$1O$2",
+            // Common OCR errors in amounts
+            Regex("(\\d+)[.]([0-9]{3})([^0-9])") to "$1.$2$3", // Preserve thousands separator
+            Regex("(\\d+)[,]([0-9]{3})([^0-9])") to "$1,$2$3"  // Preserve thousands separator
         )
         
         // Apply OCR error corrections
@@ -439,10 +482,16 @@ object IcelandicInvoiceParser {
         // Fix common Icelandic character OCR errors
         val icelandicFixes = mapOf(
             "kr0na" to "króna",
-            "kr6na" to "króna",
+            "kr6na" to "króna", 
             "samta1s" to "samtals",
+            "samta15" to "samtals",
             "upp-haeð" to "upphæð",
-            "greiðs1a" to "greiðsla"
+            "greiðs1a" to "greiðsla",
+            "gardheimar" to "garðheimar",
+            "GARDHEIMAR" to "GARÐHEIMAR",
+            "b0nus" to "bónus",
+            "B0NUS" to "BÓNUS",
+            "B6NUS" to "BÓNUS"
         )
         
         for ((wrong, right) in icelandicFixes) {
