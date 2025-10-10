@@ -134,17 +134,74 @@ fun InvoiceScannerScreen(
     }
     
     fun autoCapture() {
-        if (!processingImage && !captureInProgress) {
+        if (!processingImage && !captureInProgress && imageCapture != null) {
             captureInProgress = true
             analyzing = false
             processingImage = true
+            liveStatus = "Tek mynd..."
             
-            // Simulate capture delay and process text
-            scope.launch {
-                delay(800)
-                processingImage = false
-                onResult(lastPreviewText, null)
-            }
+            Log.d("InvoiceScanner", "Starting real image capture...")
+            
+            // Create temporary file for the captured image
+            val outputFileOptions = ImageCapture.OutputFileOptions.Builder(
+                java.io.File(context.cacheDir, "captured_invoice_${System.currentTimeMillis()}.jpg")
+            ).build()
+            
+            imageCapture!!.takePicture(
+                outputFileOptions,
+                ContextCompat.getMainExecutor(context),
+                object : ImageCapture.OnImageSavedCallback {
+                    override fun onError(exception: ImageCaptureException) {
+                        Log.e("InvoiceScanner", "Image capture failed", exception)
+                        processingImage = false
+                        captureInProgress = false
+                        analyzing = true
+                        liveStatus = "Villa við myndatöku"
+                    }
+                    
+                    override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                        Log.d("InvoiceScanner", "Image captured successfully: ${output.savedUri}")
+                        liveStatus = "Greini mynd..."
+                        
+                        // Process the captured image with OCR
+                        scope.launch {
+                            try {
+                                val imageUri = output.savedUri ?: android.net.Uri.fromFile(java.io.File(context.cacheDir, "captured_invoice_${System.currentTimeMillis()}.jpg"))
+                                val inputImage = InputImage.fromFilePath(context, imageUri)
+                                
+                                recognizer.process(inputImage)
+                                    .addOnSuccessListener { visionText ->
+                                        val ocrText = visionText.text
+                                        Log.d("InvoiceScanner", "OCR completed on captured image. Text length: ${ocrText.length}")
+                                        Log.d("InvoiceScanner", "Captured image OCR text: ${ocrText.take(300)}")
+                                        
+                                        // Store the captured image URI
+                                        lastCapturedUri = imageUri
+                                        
+                                        // Return the result with both text and image URI
+                                        processingImage = false
+                                        captureInProgress = false
+                                        onResult(ocrText, imageUri)
+                                    }
+                                    .addOnFailureListener { e ->
+                                        Log.e("InvoiceScanner", "OCR failed on captured image", e)
+                                        processingImage = false
+                                        captureInProgress = false
+                                        analyzing = true
+                                        liveStatus = "Villa við OCR"
+                                    }
+                                    
+                            } catch (e: Exception) {
+                                Log.e("InvoiceScanner", "Error processing captured image", e)
+                                processingImage = false
+                                captureInProgress = false
+                                analyzing = true
+                                liveStatus = "Villa við vinnslu"
+                            }
+                        }
+                    }
+                }
+            )
         }
     }
 
@@ -541,36 +598,71 @@ fun InvoiceScannerScreen(
 
                         Spacer(modifier = Modifier.height(12.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = {
-                                // One-shot capture using ImageCapture
-                                val capture = imageCapture ?: return@Button
-                                val outputOptions = ImageCapture.OutputFileOptions.Builder(
-                                    context.contentResolver,
-                                    android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                                    android.content.ContentValues().apply {
-                                        put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, "skanni_" + System.currentTimeMillis() + ".jpg")
-                                        put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+                            Button(
+                                onClick = {
+                                    // Manual capture - take picture and analyze it
+                                    if (imageCapture != null && !processingImage && !captureInProgress) {
+                                        captureInProgress = true
+                                        processingImage = true
+                                        liveStatus = "Tek mynd..."
+                                        
+                                        val outputFileOptions = ImageCapture.OutputFileOptions.Builder(
+                                            java.io.File(context.cacheDir, "manual_capture_${System.currentTimeMillis()}.jpg")
+                                        ).build()
+                                        
+                                        imageCapture!!.takePicture(
+                                            outputFileOptions,
+                                            ContextCompat.getMainExecutor(context),
+                                            object : ImageCapture.OnImageSavedCallback {
+                                                override fun onError(exception: ImageCaptureException) {
+                                                    Log.e("InvoiceScanner", "Manual capture failed", exception)
+                                                    processingImage = false
+                                                    captureInProgress = false
+                                                    liveStatus = "Villa við myndatöku"
+                                                }
+                                                
+                                                override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                                                    liveStatus = "Greini mynd..."
+                                                    
+                                                    // Process the captured image with OCR
+                                                    scope.launch {
+                                                        try {
+                                                            val imageUri = output.savedUri ?: android.net.Uri.fromFile(java.io.File(context.cacheDir, "manual_capture_${System.currentTimeMillis()}.jpg"))
+                                                            val inputImage = InputImage.fromFilePath(context, imageUri)
+                                                            
+                                                            recognizer.process(inputImage)
+                                                                .addOnSuccessListener { visionText ->
+                                                                    val ocrText = visionText.text
+                                                                    Log.d("InvoiceScanner", "Manual capture OCR completed. Text length: ${ocrText.length}")
+                                                                    
+                                                                    lastCapturedUri = imageUri
+                                                                    processingImage = false
+                                                                    captureInProgress = false
+                                                                    
+                                                                    // Return result with OCR text from captured image
+                                                                    onResult(ocrText, imageUri)
+                                                                }
+                                                                .addOnFailureListener { e ->
+                                                                    Log.e("InvoiceScanner", "Manual capture OCR failed", e)
+                                                                    processingImage = false
+                                                                    captureInProgress = false
+                                                                    liveStatus = "Villa við OCR"
+                                                                }
+                                                                
+                                                        } catch (e: Exception) {
+                                                            Log.e("InvoiceScanner", "Error processing manual capture", e)
+                                                            processingImage = false
+                                                            captureInProgress = false
+                                                            liveStatus = "Villa við vinnslu"
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        )
                                     }
-                                ).build()
-                                processingImage = true
-                                capture.takePicture(
-                                    outputOptions,
-                                    ContextCompat.getMainExecutor(context)
-                                , object: ImageCapture.OnImageSavedCallback {
-                                        override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                                            lastCapturedUri = outputFileResults.savedUri
-                                            processingImage = false
-                                            liveStatus = "Mynd vistuð"
-                                            onResult(lastPreviewText, lastCapturedUri)
-                                        }
-                                        override fun onError(exception: ImageCaptureException) {
-                                            processingImage = false
-                                            liveStatus = "Villa við vistun: ${exception.message}"
-                                            Log.e("InvoiceScanner", "ImageCapture error", exception)
-                                        }
-                                    }
-                                )
-                            }) {
+                                },
+                                enabled = !processingImage && !captureInProgress
+                            ) {
                                 Icon(Icons.Default.Camera, contentDescription = null)
                                 Spacer(Modifier.width(8.dp))
                                 Text("Taka mynd")
