@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -20,7 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import io.github.saeargeir.skanniapp.R
+import io.github.saeargeir.skanniapp.ui.components.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,22 +39,24 @@ fun SkanniHomeScreen(
 ) {
     // Settings menu state
     var showSettingsMenu by remember { mutableStateOf(false) }
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        Color(0xFF66BB6A), // Lighter green at center
-                        Color(0xFF4CAF50), // Medium green
-                        Color(0xFF388E3C), // Darker green
-                        Color(0xFF2E7D32), // Even darker
-                        Color(0xFF1B5E20)  // Darkest green at edges
-                    ),
-                    radius = 1200f
+    var showFloatingMenu by remember { mutableStateOf(false) }
+    
+    ResponsiveContainer {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                            MaterialTheme.colorScheme.primary
+                        ),
+                        radius = 1200f
+                    )
                 )
-            )
-    ) {
+        ) {
         // Settings menu button in top-right corner
         Box(
             modifier = Modifier
@@ -108,7 +111,7 @@ fun SkanniHomeScreen(
                         // Handle help screen
                     },
                     leadingIcon = {
-                        Icon(Icons.Default.Help, contentDescription = null)
+                        Icon(Icons.AutoMirrored.Filled.Help, contentDescription = null)
                     }
                 )
                 // New export actions
@@ -141,111 +144,93 @@ fun SkanniHomeScreen(
                         onLogout()
                     },
                     leadingIcon = {
-                        Icon(Icons.Default.Logout, contentDescription = null, tint = Color.Red)
+                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = Color.Red)
                     }
                 )
             }
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // App logo and intro
-            Spacer(modifier = Modifier.height(48.dp))
-
-            // SkanniApp Logo instead of text
-            Image(
-                painter = painterResource(id = R.drawable.logosk),
-                contentDescription = "SkanniApp Logo",
+            // Main content area with improved responsive layout
+            Column(
                 modifier = Modifier
-                    .size(120.dp)
-                    .padding(8.dp),
-                colorFilter = ColorFilter.tint(Color.White)
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Spacer(modifier = Modifier.height(48.dp))
-
-            // Main action buttons with modern card design
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.White.copy(alpha = 0.95f)
-                ),
-                shape = RoundedCornerShape(20.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                    .fillMaxSize()
+                    .responsivePadding(),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                // App logo and intro with animation
+                Spacer(modifier = Modifier.height(48.dp))
+
+                AnimatedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    animationDelay = 100
                 ) {
-                    Text(
-                        "Skanna reikninga",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF2E7D32)
-                    )
-
-                    // Single scan button
-                    Button(
-                        onClick = onScan,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF4CAF50)
-                        ),
-                        shape = RoundedCornerShape(16.dp)
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        // Use simple icon instead of image resource temporarily
                         Icon(
-                            Icons.Default.Camera,
-                            contentDescription = null,
-                            tint = Color.White
+                            Icons.Default.Receipt,
+                            contentDescription = "SkanniApp Logo",
+                            modifier = Modifier.size(80.dp),
+                            tint = MaterialTheme.colorScheme.primary
                         )
-                        Spacer(modifier = Modifier.width(12.dp))
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
                         Text(
-                            "Skanna einn reikning",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color.White
+                            "SkanniApp",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
-                    }
-
-                    // Batch scan button - professional feature
-                    OutlinedButton(
-                        onClick = onBatchScan,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = Color(0xFF2E7D32)
-                        ),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(
-                            brush = Brush.linearGradient(
-                                colors = listOf(Color(0xFF4CAF50), Color(0xFF2E7D32))
-                            )
-                        ),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.CameraAlt,
-                            contentDescription = null,
-                            tint = Color(0xFF2E7D32)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
+                        
                         Text(
-                            "Fjöldaskanning (Pro)",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF2E7D32)
+                            "Íslenski reikningaskannarinn",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
-            }
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Professional action buttons using new components
+                AnimatedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    animationDelay = 200
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp)
+                    ) {
+                        Text(
+                            "Skanna reikninga",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        // Main scanning buttons
+                        SkanniActionButton(
+                            onClick = onScan,
+                            text = "Skanna einn reikning",
+                            icon = Icons.Default.Camera,
+                            style = ButtonStyle.Primary
+                        )
+                        
+                        Spacer(modifier = Modifier.height(12.dp))
+                        
+                        SkanniActionButton(
+                            onClick = onBatchScan,
+                            text = "Fjöldaskanning (Pro)",
+                            icon = Icons.Default.CameraAlt,
+                            style = ButtonStyle.Secondary
+                        )
+                    }
+                }
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -305,7 +290,7 @@ fun SkanniHomeScreen(
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Icon(
-                                Icons.Default.Note,
+                                Icons.AutoMirrored.Filled.Note,
                                 contentDescription = null,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -338,25 +323,16 @@ fun SkanniHomeScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Ice Veflausnir branding
+            // Ice Veflausnir branding  
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "Powered by",
+                    "Powered by Ice Veflausnir",
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.White.copy(alpha = 0.6f)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Image(
-                    painter = painterResource(id = R.drawable.logos_new),
-                    contentDescription = "Ice Veflausnir",
-                    modifier = Modifier
-                        .height(24.dp)
-                        .width(80.dp),
-                    contentScale = ContentScale.Fit
                 )
             }
 
@@ -380,5 +356,36 @@ fun SkanniHomeScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
         }
+        
+        // Floating action menu for export functions
+        SkanniFloatingActionMenu(
+            isExpanded = showFloatingMenu,
+            onExpandedChange = { showFloatingMenu = it },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp),
+            mainAction = FloatingActionConfig(
+                text = "Aðgerðir",
+                icon = Icons.Default.MoreVert,
+                onClick = { }
+            ),
+            secondaryActions = listOf(
+                FloatingActionConfig(
+                    text = "Flytja út CSV",
+                    icon = Icons.Default.FileDownload,
+                    onClick = onExportCsv
+                ),
+                FloatingActionConfig(
+                    text = "Flytja út JSON",
+                    icon = Icons.Default.DataObject,
+                    onClick = onExportJson
+                ),
+                FloatingActionConfig(
+                    text = "Senda Excel",
+                    icon = Icons.Default.AttachFile,
+                    onClick = onSendExcel
+                )
+            )
+        )
     }
-}
+}}

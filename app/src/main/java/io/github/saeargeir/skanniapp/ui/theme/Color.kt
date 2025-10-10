@@ -2,19 +2,18 @@ package io.github.saeargeir.skanniapp.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Modern blue-green color palette inspired by Icelandic nature
-val IcelandBlue80 = Color(0xFF6DC5DC)  // Light glacier blue
-val IcelandGreen80 = Color(0xFF81C784)  // Light moss green  
-val IcelandPurple80 = Color(0xFFB39DDB) // Northern lights purple
+// Modern green color palette inspired by Icelandic nature - Professional & Consistent
+val SkanniGreen80 = Color(0xFF81C784)   // Light moss green
+val SkanniGreen60 = Color(0xFF66BB6A)   // Medium light green
+val SkanniGreen40 = Color(0xFF4CAF50)   // Primary green 
+val SkanniGreen20 = Color(0xFF388E3C)   // Deep forest green
+val SkanniGreen10 = Color(0xFF2E7D32)   // Darker green
+val SkanniGreen5 = Color(0xFF1B5E20)    // Darkest green
 
-val IcelandBlue40 = Color(0xFF0277BD)  // Deep fjord blue
-val IcelandGreen40 = Color(0xFF388E3C) // Deep forest green
-val IcelandPurple40 = Color(0xFF512DA8) // Deep aurora purple
-
-// Additional accent colors
-val Glacier = Color(0xFFE1F5FE)      // Very light blue background
-val Moss = Color(0xFFE8F5E8)        // Very light green background
-val Aurora = Color(0xFFF3E5F5)      // Very light purple background
+// Light green backgrounds and accents
+val LightGreen = Color(0xFFE8F5E8)      // Very light green background
+val PaleGreen = Color(0xFFF1F8E9)       // Ultra light green
+val MintGreen = Color(0xFFE0F2F1)       // Mint background
 
 // Semantic colors
 val Success = Color(0xFF4CAF50)

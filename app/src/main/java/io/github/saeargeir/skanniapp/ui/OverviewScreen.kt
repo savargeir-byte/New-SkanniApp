@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,7 +22,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.saeargeir.skanniapp.model.InvoiceRecord
-import io.github.saeargeir.skanniapp.R
 import java.time.YearMonth
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -98,18 +98,18 @@ fun OverviewScreen(
             ) {
                 IconButton(onClick = onBack) {
                     Icon(
-                        Icons.Default.ArrowBack,
+                        Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
                         tint = Color.White
                     )
                 }
                 
                 // SkanniApp logo
-                Image(
-                    painter = painterResource(id = R.drawable.logo3_new),
+                Icon(
+                    Icons.Default.Receipt,
                     contentDescription = "SkanniApp",
                     modifier = Modifier.size(32.dp),
-                    colorFilter = ColorFilter.tint(Color.White)
+                    tint = Color.White
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 
@@ -304,13 +304,10 @@ fun OverviewScreen(
                     color = Color.White.copy(alpha = 0.6f)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Image(
-                    painter = painterResource(id = R.drawable.logos_new),
-                    contentDescription = "Ice Veflausnir",
-                    modifier = Modifier
-                        .height(24.dp)
-                        .width(80.dp),
-                    contentScale = ContentScale.Fit
+                Text(
+                    "ICE Veflausnir",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White
                 )
             }
         }

@@ -14,6 +14,8 @@ import io.github.saeargeir.skanniapp.data.ProcessingStatus
 import io.github.saeargeir.skanniapp.model.InvoiceRecord
 import io.github.saeargeir.skanniapp.utils.IcelandicInvoiceParser
 import io.github.saeargeir.skanniapp.utils.EdgeDetectionUtil
+import io.github.saeargeir.skanniapp.utils.ImageEnhancementUtil
+import timber.log.Timber
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -29,8 +31,12 @@ import kotlin.coroutines.resumeWithException
 class BatchOcrProcessor(
     private val context: Context
 ) {
-    private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+        private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    
+    companion object {
+        private const val TAG = "BatchOcrProcessor"
+    }
 
     /**
      * Process multiple receipts in batch
@@ -42,10 +48,10 @@ class BatchOcrProcessor(
         emit(BatchProcessingResult.Started)
         
         try {
-            val result = processBatch(receipts, onProgress)
+                        val result = processBatch(receipts, onProgress)
             emit(BatchProcessingResult.Completed(result))
         } catch (e: Exception) {
-            Log.e("BatchOcrProcessor", "Batch processing failed", e)
+            Timber.e(e, "Batch processing failed")
             emit(BatchProcessingResult.Failed(e.message ?: "Unknown error"))
         }
     }
@@ -175,8 +181,8 @@ class BatchOcrProcessor(
                 }
                 
             } catch (e: Exception) {
-                lastException = e
-                Log.w("BatchOcrProcessor", "Attempt ${attempt + 1} failed for ${receipt.id}", e)
+                                lastException = e
+                Timber.w(e, "Attempt ${attempt + 1} failed for ${receipt.id}")
             }
             
             attempt++
@@ -186,7 +192,7 @@ class BatchOcrProcessor(
             }
         }
         
-        Log.e("BatchOcrProcessor", "All attempts failed for ${receipt.id}", lastException)
+        Timber.e(lastException, "All attempts failed for ${receipt.id}")
         return@withContext null
     }
     
@@ -215,25 +221,45 @@ class BatchOcrProcessor(
      */
     private fun loadBitmapFromUri(uri: Uri): Bitmap? {
         return try {
-            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                        context.contentResolver.openInputStream(uri)?.use { inputStream ->
                 BitmapFactory.decodeStream(inputStream)
             }
         } catch (e: Exception) {
-            Log.e("BatchOcrProcessor", "Failed to load bitmap from URI", e)
+            Timber.e(e, "Failed to load bitmap from URI")
             null
         }
     }
     
-    /**
+        /**
      * Enhance bitmap for better OCR results
      */
     private fun enhanceBitmapForOcr(bitmap: Bitmap): Bitmap {
         return try {
-            // For now, just return the original bitmap
-            // TODO: Implement bitmap enhancement based on edge detection
-            bitmap
+            Timber.d("Enhancing bitmap for OCR")
+            
+            // Step 1: Check if enhancement is needed
+            val quality = ImageEnhancementUtil.assessQuality(bitmap)
+            Timber.d("Image quality: ${quality.overallScore}")
+            
+            if (quality.isExcellentQuality()) {
+                Timber.d("Image quality is excellent, skipping enhancement")
+                return bitmap
+            }
+            
+            // Step 2: Apply enhancement
+            val enhanced = if (quality.isGoodQuality()) {
+                // Quick enhancement for decent images
+                ImageEnhancementUtil.quickEnhance(bitmap)
+            } else {
+                // Full enhancement for poor quality images
+                Timber.d("Applying full enhancement: ${quality.recommendation}")
+                ImageEnhancementUtil.enhanceForOcr(bitmap)
+            }
+            
+            Timber.d("Enhancement completed successfully")
+            enhanced
         } catch (e: Exception) {
-            Log.w("BatchOcrProcessor", "Enhancement failed, using original", e)
+            Timber.w(e, "Enhancement failed, using original")
             bitmap
         }
     }
@@ -247,9 +273,9 @@ class BatchOcrProcessor(
             file.outputStream().use { out ->
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
             }
-            Uri.fromFile(file)
+                        Uri.fromFile(file)
         } catch (e: Exception) {
-            Log.e("BatchOcrProcessor", "Failed to save bitmap", e)
+            Timber.e(e, "Failed to save bitmap")
             null
         }
     }

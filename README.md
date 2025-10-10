@@ -2,6 +2,8 @@
 
 **SkanniApp** is a professional Icelandic receipt scanning app with advanced OCR (Optical Character Recognition) technology. The app uses ML Kit for text recognition and offers diverse export and analysis capabilities.
 
+> **🚀 Recently Enhanced!** Now with Room Database, professional image enhancement, comprehensive error handling, and production-ready architecture. [See improvements](IMPROVEMENTS.md)
+
 ## ✨ Key Features
 
 ### 🎨 Professional Design

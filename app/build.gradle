@@ -1,6 +1,7 @@
 apply plugin: 'com.android.application'
 apply plugin: 'org.jetbrains.kotlin.android'
 apply plugin: 'com.google.gms.google-services'
+apply plugin: 'kotlin-kapt'
 
 // Redirect build outputs to avoid Windows file lock issues on default build dir
 buildDir = "build_android${System.currentTimeMillis()}"
@@ -95,7 +96,29 @@ dependencies {
     // ML Kit Text Recognition (Latin)
     implementation 'com.google.mlkit:text-recognition:16.0.0'
     
+    // Room Database for better persistence
+    implementation 'androidx.room:room-runtime:2.6.1'
+    implementation 'androidx.room:room-ktx:2.6.1'
+    kapt 'androidx.room:room-compiler:2.6.1'
+    
+    // Coroutines for async operations
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3'
+    
+    // ViewModel and LiveData
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0'
+    implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.7.0'
+    
+    // DataStore for preferences
+    implementation 'androidx.datastore:datastore-preferences:1.0.0'
+    
+    // Timber for better logging
+    implementation 'com.jakewharton.timber:timber:5.0.1'
+    
     testImplementation 'junit:junit:4.13.2'
+    testImplementation 'androidx.room:room-testing:2.6.1'
+    testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
     androidTestImplementation platform('androidx.compose:compose-bom:2024.02.00')

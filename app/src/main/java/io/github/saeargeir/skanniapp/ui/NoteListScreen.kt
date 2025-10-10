@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,7 +23,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import io.github.saeargeir.skanniapp.R
 import io.github.saeargeir.skanniapp.model.InvoiceRecord
 import io.github.saeargeir.skanniapp.model.SortType
 import java.time.YearMonth
@@ -77,7 +77,7 @@ fun NoteListScreen(
                     )
             ) {
                 Icon(
-                    Icons.Default.ArrowBack,
+                    Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Til baka",
                     tint = Color.White
                 )
@@ -128,13 +128,13 @@ fun NoteListScreen(
             Spacer(modifier = Modifier.height(48.dp))
 
             // SkanniApp Logo same as home
-            Image(
-                painter = painterResource(id = R.drawable.logosk),
+            Icon(
+                Icons.Default.Receipt,
                 contentDescription = "SkanniApp Logo",
                 modifier = Modifier
                     .size(120.dp)
                     .padding(8.dp),
-                colorFilter = ColorFilter.tint(Color.White)
+                tint = Color.White
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -320,13 +320,10 @@ fun NoteListScreen(
                     color = Color.White.copy(alpha = 0.6f)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Image(
-                    painter = painterResource(id = R.drawable.logos_new),
-                    contentDescription = "Ice Veflausnir",
-                    modifier = Modifier
-                        .height(24.dp)
-                        .width(80.dp),
-                    contentScale = ContentScale.Fit
+                Text(
+                    "ICE Veflausnir",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White
                 )
             }
 

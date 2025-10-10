@@ -37,7 +37,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
-import io.github.saeargeir.skanniapp.R
 import io.github.saeargeir.skanniapp.utils.IcelandicInvoiceParser
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
@@ -229,11 +228,11 @@ fun InvoiceScannerScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.logosk),
+                        Icon(
+                            Icons.Default.Receipt,
                             contentDescription = "SkanniApp Logo",
                             modifier = Modifier.size(32.dp),
-                            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface)
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                         Text("Skanna reikning")
                     }
@@ -261,11 +260,10 @@ fun InvoiceScannerScreen(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.logos_new),
-                        contentDescription = "Ice Veflausnir",
-                        modifier = Modifier.height(24.dp),
-                        colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    Text(
+                        "ICE Veflausnir",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                 }
             }
@@ -473,11 +471,11 @@ fun InvoiceScannerScreen(
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.logosk),
+                Icon(
+                    Icons.Default.Receipt,
                     contentDescription = "SkanniApp",
                     modifier = Modifier.size(32.dp),
-                    colorFilter = ColorFilter.tint(Color.White)
+                    tint = Color.White
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(

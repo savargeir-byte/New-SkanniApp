@@ -10,20 +10,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 private val LightColorScheme = lightColorScheme(
-    primary = IcelandBlue40,
+    primary = SkanniGreen40,
     onPrimary = Color.White,
-    primaryContainer = Glacier,
-    onPrimaryContainer = IcelandBlue40,
+    primaryContainer = LightGreen,
+    onPrimaryContainer = SkanniGreen10,
     
-    secondary = IcelandGreen40,
+    secondary = SkanniGreen20,
     onSecondary = Color.White,
-    secondaryContainer = Moss,
-    onSecondaryContainer = IcelandGreen40,
+    secondaryContainer = PaleGreen,
+    onSecondaryContainer = SkanniGreen10,
     
-    tertiary = IcelandPurple40,
+    tertiary = SkanniGreen60,
     onTertiary = Color.White,
-    tertiaryContainer = Aurora,
-    onTertiaryContainer = IcelandPurple40,
+    tertiaryContainer = MintGreen,
+    onTertiaryContainer = SkanniGreen10,
     
     error = Error,
     onError = Color.White,
@@ -42,20 +42,20 @@ private val LightColorScheme = lightColorScheme(
 )
 
 private val DarkColorScheme = darkColorScheme(
-    primary = IcelandBlue80,
+    primary = SkanniGreen80,
     onPrimary = NeutralGray900,
-    primaryContainer = IcelandBlue40,
-    onPrimaryContainer = IcelandBlue80,
+    primaryContainer = SkanniGreen20,
+    onPrimaryContainer = SkanniGreen80,
     
-    secondary = IcelandGreen80,
+    secondary = SkanniGreen60,
     onSecondary = NeutralGray900,
-    secondaryContainer = IcelandGreen40,
-    onSecondaryContainer = IcelandGreen80,
+    secondaryContainer = SkanniGreen10,
+    onSecondaryContainer = SkanniGreen80,
     
-    tertiary = IcelandPurple80,
+    tertiary = SkanniGreen80,
     onTertiary = NeutralGray900,
-    tertiaryContainer = IcelandPurple40,
-    onTertiaryContainer = IcelandPurple80,
+    tertiaryContainer = SkanniGreen5,
+    onTertiaryContainer = SkanniGreen80,
     
     error = Color(0xFFFFB4AB),
     onError = Color(0xFF690005),

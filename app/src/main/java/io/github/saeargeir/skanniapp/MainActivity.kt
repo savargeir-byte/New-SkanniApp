@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -316,7 +317,7 @@ class MainActivity : ComponentActivity() {
                     title = { Text("SkanniApp") },
                     actions = {
                         IconButton(onClick = onSignOut) {
-                            Icon(Icons.Default.ExitToApp, contentDescription = "Sign Out")
+                            Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Sign Out")
                         }
                     }
                 )

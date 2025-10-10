@@ -49,9 +49,13 @@ if (-not (Test-Path $emulatorExe)) { throw "emulator not found at $emulatorExe" 
 # Pick an AVD if not provided
 if (-not $AvdName) {
   $iniDir = Join-Path $env:USERPROFILE '.android\avd'
-  $avds = Get-ChildItem -Path $iniDir -Filter *.avd -Directory -ErrorAction SilentlyContinue | ForEach-Object { $_.Name -replace '\\.avd$','' }
+  # Strip the trailing ".avd" from directory names to get the AVD name
+  $avds = Get-ChildItem -Path $iniDir -Filter *.avd -Directory -ErrorAction SilentlyContinue | ForEach-Object { $_.Name -replace '\.avd$','' }
   if (-not $avds) { throw "No Android Virtual Devices found. Create one via Android Studio > Device Manager." }
   $AvdName = $avds | Select-Object -First 1
+} else {
+  # In case caller passed a folder-like name, normalize by stripping trailing .avd
+  $AvdName = ($AvdName -replace '\.avd$','')
 }
 
 Write-Header "Start emulator: $AvdName"

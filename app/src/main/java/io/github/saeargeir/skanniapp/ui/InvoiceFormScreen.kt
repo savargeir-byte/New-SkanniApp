@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -85,7 +86,7 @@ fun InvoiceFormScreen(
                                 onSignOut()
                             },
                             leadingIcon = {
-                                Icon(Icons.Default.ExitToApp, contentDescription = null)
+                                Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null)
                             }
                         )
                         HorizontalDivider()

@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SkanniApp Logo - Professional receipt scanner icon with text -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="800dp"
+    android:height="200dp"
+    android:viewportWidth="800"
+    android:viewportHeight="200">
+    
+    <!-- Scanner/Receipt Icon -->
+    <group
+        android:translateX="40"
+        android:translateY="40">
+        
+        <!-- Base/Scanner Platform -->
+        <path
+            android:fillColor="#2E7D32"
+            android:pathData="M 10,100 L 130,100 L 130,115 Q 130,120 125,120 L 15,120 Q 10,120 10,115 Z" />
+        
+        <!-- Receipt/Document -->
+        <path
+            android:fillColor="#4CAF50"
+            android:pathData="M 30,20 L 110,20 L 110,15 L 95,15 L 95,5 L 30,5 Q 25,5 25,10 L 25,95 Q 25,100 30,100 L 110,100 Q 115,100 115,95 L 115,25 L 110,20 Z" />
+        
+        <!-- Receipt corner fold -->
+        <path
+            android:fillColor="#66BB6A"
+            android:pathData="M 95,5 L 95,15 L 110,15 Z" />
+        
+        <!-- Dollar sign on receipt -->
+        <path
+            android:fillColor="#1B5E20"
+            android:strokeWidth="4"
+            android:pathData="M 60,35 Q 50,35 50,45 Q 50,52 60,55 L 75,55 Q 80,55 80,60 Q 80,65 75,65 L 55,65 M 65,30 L 65,70" />
+        
+        <!-- Receipt lines -->
+        <path
+            android:fillColor="#2E7D32"
+            android:pathData="M 85,40 L 105,40 L 105,43 L 85,43 Z" />
+        <path
+            android:fillColor="#2E7D32"
+            android:pathData="M 85,50 L 105,50 L 105,53 L 85,53 Z" />
+        <path
+            android:fillColor="#2E7D32"
+            android:pathData="M 85,60 L 105,60 L 105,63 L 85,63 Z" />
+        
+    </group>
+    
+    <!-- "SkanniApp" Text -->
+    <group
+        android:translateX="180"
+        android:translateY="50">
+        
+        <!-- S -->
+        <path
+            android:fillColor="#2E7D32"
+            android:pathData="M 10,30 Q 10,10 30,10 L 60,10 Q 70,10 70,15 L 70,20 L 55,20 L 55,20 Q 55,18 50,18 L 35,18 Q 30,18 30,23 Q 30,28 35,28 L 60,28 Q 80,28 80,48 Q 80,68 60,68 L 25,68 Q 15,68 15,63 L 15,58 L 30,58 L 30,58 Q 30,60 35,60 L 55,60 Q 60,60 60,55 Q 60,50 55,50 L 30,50 Q 10,50 10,30 Z" />
+        
+        <!-- k -->
+        <path
+            android:fillColor="#2E7D32"
+            android:pathData="M 95,5 L 110,5 L 110,65 L 95,65 Z M 95,30 L 125,5 L 145,5 L 120,30 L 145,65 L 125,65 Z" />
+        
+        <!-- a -->
+        <path
+            android:fillColor="#2E7D32"
+            android:pathData="M 160,25 L 175,25 L 175,65 L 160,65 Z M 160,45 Q 160,30 180,30 L 200,30 Q 215,30 215,45 L 215,65 L 200,65 L 200,45 Q 200,40 195,40 L 185,40 Q 180,40 180,45 L 180,65 L 160,65 Z" />
+        
+        <!-- n -->
+        <path
+            android:fillColor="#2E7D32"
+            android:pathData="M 230,25 L 245,25 L 245,65 L 230,65 Z M 230,45 Q 230,30 250,30 L 270,30 Q 285,30 285,45 L 285,65 L 270,65 L 270,45 Q 270,40 265,40 L 255,40 Q 250,40 250,45 L 250,65 L 230,65 Z" />
+        
+        <!-- n -->
+        <path
+            android:fillColor="#2E7D32"
+            android:pathData="M 300,25 L 315,25 L 315,65 L 300,65 Z M 300,45 Q 300,30 320,30 L 340,30 Q 355,30 355,45 L 355,65 L 340,65 L 340,45 Q 340,40 335,40 L 325,40 Q 320,40 320,45 L 320,65 L 300,65 Z" />
+        
+        <!-- i -->
+        <path
+            android:fillColor="#2E7D32"
+            android:pathData="M 370,5 L 385,5 L 385,20 L 370,20 Z M 370,25 L 385,25 L 385,65 L 370,65 Z" />
+        
+        <!-- A -->
+        <path
+            android:fillColor="#4CAF50"
+            android:pathData="M 400,65 L 385,25 L 402,25 L 410,45 L 425,5 L 442,5 L 450,45 L 458,25 L 475,25 L 460,65 L 443,65 L 435,35 L 427,65 Z" />
+        
+        <!-- p -->
+        <path
+            android:fillColor="#4CAF50"
+            android:pathData="M 485,25 L 500,25 L 500,80 L 485,80 Z M 485,45 Q 485,30 505,30 L 520,30 Q 535,30 535,45 L 535,55 Q 535,70 520,70 L 505,70 Q 500,70 500,65 L 500,80 M 500,45 L 500,55 Q 500,60 505,60 L 515,60 Q 520,60 520,55 L 520,45 Q 520,40 515,40 L 505,40 Q 500,40 500,45 Z" />
+        
+        <!-- p -->
+        <path
+            android:fillColor="#4CAF50"
+            android:pathData="M 550,25 L 565,25 L 565,80 L 550,80 Z M 550,45 Q 550,30 570,30 L 585,30 Q 600,30 600,45 L 600,55 Q 600,70 585,70 L 570,70 Q 565,70 565,65 L 565,80 M 565,45 L 565,55 Q 565,60 570,60 L 580,60 Q 585,60 585,55 L 585,45 Q 585,40 580,40 L 570,40 Q 565,40 565,45 Z" />
+        
+    </group>
+</vector>
