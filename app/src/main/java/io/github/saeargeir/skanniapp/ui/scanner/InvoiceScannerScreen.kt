@@ -698,3 +698,95 @@ fun InvoiceScannerScreen(
         }
     }
 }
+
+/**
+ * CropBox data class fyrir crop overlay
+ */
+data class CropBox(
+    val left: Float,    // 0.0 to 1.0
+    val top: Float,     // 0.0 to 1.0
+    val right: Float,   // 0.0 to 1.0
+    val bottom: Float   // 0.0 to 1.0
+)
+
+/**
+ * CropOverlay composable fyrir visual feedback
+ */
+@Composable
+fun CropOverlay(
+    cropBox: CropBox,
+    onCropBoxChange: (CropBox) -> Unit,
+    containerSize: IntSize,
+    enabled: Boolean
+) {
+    // For now, just display a static overlay
+    // Future enhancement: allow dragging corners to adjust crop box
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        // Semi-transparent overlay outside crop area
+        androidx.compose.foundation.Canvas(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            val width = size.width
+            val height = size.height
+            
+            val cropLeft = width * cropBox.left
+            val cropTop = height * cropBox.top
+            val cropRight = width * cropBox.right
+            val cropBottom = height * cropBox.bottom
+            
+            // Draw semi-transparent overlay outside crop box
+            drawRect(
+                color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.5f),
+                topLeft = androidx.compose.ui.geometry.Offset(0f, 0f),
+                size = androidx.compose.ui.geometry.Size(width, cropTop)
+            )
+            drawRect(
+                color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.5f),
+                topLeft = androidx.compose.ui.geometry.Offset(0f, cropBottom),
+                size = androidx.compose.ui.geometry.Size(width, height - cropBottom)
+            )
+            drawRect(
+                color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.5f),
+                topLeft = androidx.compose.ui.geometry.Offset(0f, cropTop),
+                size = androidx.compose.ui.geometry.Size(cropLeft, cropBottom - cropTop)
+            )
+            drawRect(
+                color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.5f),
+                topLeft = androidx.compose.ui.geometry.Offset(cropRight, cropTop),
+                size = androidx.compose.ui.geometry.Size(width - cropRight, cropBottom - cropTop)
+            )
+            
+            // Draw crop box border
+            drawRect(
+                color = androidx.compose.ui.graphics.Color.White,
+                topLeft = androidx.compose.ui.geometry.Offset(cropLeft, cropTop),
+                size = androidx.compose.ui.geometry.Size(cropRight - cropLeft, cropBottom - cropTop),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3f)
+            )
+            
+            // Draw corner indicators
+            val cornerSize = 20f
+            val corners = listOf(
+                androidx.compose.ui.geometry.Offset(cropLeft, cropTop),
+                androidx.compose.ui.geometry.Offset(cropRight, cropTop),
+                androidx.compose.ui.geometry.Offset(cropLeft, cropBottom),
+                androidx.compose.ui.geometry.Offset(cropRight, cropBottom)
+            )
+            
+            corners.forEach { corner ->
+                drawCircle(
+                    color = androidx.compose.ui.graphics.Color.White,
+                    radius = cornerSize / 2,
+                    center = corner
+                )
+                drawCircle(
+                    color = androidx.compose.ui.graphics.Color.Green,
+                    radius = cornerSize / 2 - 2f,
+                    center = corner
+                )
+            }
+        }
+    }
+}
