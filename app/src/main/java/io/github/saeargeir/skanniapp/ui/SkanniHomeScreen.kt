@@ -1,7 +1,5 @@
 package io.github.saeargeir.skanniapp.ui
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -18,14 +16,12 @@ import androidx.compose.ui.draw.paint
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,40 +47,6 @@ fun SkanniHomeScreen(
     var isBackgroundProcessing by remember { mutableStateOf(false) }
     var backgroundProcessingStage by remember { mutableStateOf("") }
     var showProcessingSuccess by remember { mutableStateOf(false) }
-    
-    // Animation states
-    var isVisible by remember { mutableStateOf(false) }
-    var showContent by remember { mutableStateOf(false) }
-    
-    // Button animation states
-    var showButtons by remember { mutableStateOf(false) }
-    var showMainActions by remember { mutableStateOf(false) }
-    var showExportActions by remember { mutableStateOf(false) }
-    
-    // Floating animation for logo
-    val infiniteTransition = rememberInfiniteTransition(label = "logo_float")
-    val logoOffset by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 10f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(3000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ), 
-        label = "logo_offset"
-    )
-    
-    // Trigger entrance animations
-    LaunchedEffect(Unit) {
-        isVisible = true
-        delay(200)
-        showContent = true
-        delay(300)
-        showButtons = true
-        delay(400)
-        showMainActions = true
-        delay(500)
-        showExportActions = true
-    }
     
     // Simulation of background processing when returning from camera
     LaunchedEffect(autoStartScan) {
@@ -227,316 +189,173 @@ fun SkanniHomeScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(16.dp) // Basic padding instead of responsivePadding
-                    .padding(bottom = 80.dp), // Reduced padding for navigation bar
+                    .padding(bottom = 140.dp), // Increased padding even more for navigation bar
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // App logo and intro with animation
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(48.dp))
 
-                AnimatedVisibility(
-                    visible = showContent,
-                    enter = slideInVertically(
-                        initialOffsetY = { -300 },
-                        animationSpec = tween(800, easing = FastOutSlowInEasing)
-                    ) + fadeIn(animationSpec = tween(800))
-                ) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .offset(y = logoOffset.dp), // Floating animation
-                        elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color.White.copy(alpha = 0.95f)
-                        ),
-                        shape = RoundedCornerShape(24.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            // Animated logo with pulse effect
-                            val pulseScale by infiniteTransition.animateFloat(
-                                initialValue = 1f,
-                                targetValue = 1.1f,
-                                animationSpec = infiniteRepeatable(
-                                    animation = tween(2000, easing = FastOutSlowInEasing),
-                                    repeatMode = RepeatMode.Reverse
-                                ),
-                                label = "pulse_scale"
-                            )
-                            
-                            Box(
-                                modifier = Modifier
-                                    .size(80.dp)
-                                    .background(
-                                        brush = Brush.radialGradient(
-                                            colors = listOf(
-                                                Color(0xFF4CAF50),
-                                                Color(0xFF2E7D32)
-                                            )
-                                        ),
-                                        shape = CircleShape
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    Icons.Default.Receipt,
-                                    contentDescription = "SkanniApp Logo",
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .graphicsLayer(scaleX = pulseScale, scaleY = pulseScale),
-                                    tint = Color.White
-                                )
-                            }
-                            
-                            Spacer(modifier = Modifier.height(16.dp))
-                            
-                            Text(
-                                "SkanniApp",
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF2E7D32)
-                            )
-                            
-                            Text(
-                                "Íslenski reikningaskannarinn",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = Color(0xFF4CAF50),
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Professional action buttons with animations
-                AnimatedVisibility(
-                    visible = showButtons,
-                    enter = slideInVertically(
-                        initialOffsetY = { 200 },
-                        animationSpec = tween(600, delayMillis = 300, easing = FastOutSlowInEasing)
-                    ) + fadeIn(animationSpec = tween(600, delayMillis = 300))
-                ) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color.White.copy(alpha = 0.95f)
-                        ),
-                        shape = RoundedCornerShape(20.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(24.dp)
-                        ) {
-                            Text(
-                                "📷 Skanna reikninga",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF2E7D32)
-                            )
-                            
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            // Main scanning buttons with enhanced design
-                            Button(
-                                onClick = onScan,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(56.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF4CAF50)
-                                ),
-                                shape = RoundedCornerShape(16.dp),
-                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.Camera, 
-                                    contentDescription = null,
-                                    modifier = Modifier.size(24.dp),
-                                    tint = Color.White
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                    "Skanna einn reikning",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                            }
-                            
-                            Spacer(modifier = Modifier.height(12.dp))
-                            
-                            OutlinedButton(
-                                onClick = onBatchScan,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = Color(0xFF4CAF50)
-                                ),
-                                shape = RoundedCornerShape(16.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.CameraAlt, 
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Fjöldaskanning (Pro)")
-                            }
-                        }
-                    }
-                }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Management buttons with enhanced animations and design
-            AnimatedVisibility(
-                visible = showMainActions,
-                enter = slideInHorizontally(
-                    initialOffsetX = { 400 },
-                    animationSpec = tween(700, delayMillis = 400, easing = FastOutSlowInEasing)
-                ) + fadeIn(animationSpec = tween(700, delayMillis = 400))
-            ) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFF4CAF50).copy(alpha = 0.1f)
-                    ),
-                    shape = RoundedCornerShape(24.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                 ) {
                     Column(
                         modifier = Modifier.padding(24.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Use simple icon instead of image resource temporarily
+                        Icon(
+                            Icons.Default.Receipt,
+                            contentDescription = "SkanniApp Logo",
+                            modifier = Modifier.size(80.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        Text(
+                            "SkanniApp",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        
+                        Text(
+                            "Íslenski reikningaskannarinn",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Professional action buttons using new components
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp)
                     ) {
                         Text(
-                            "📊 Reikninga Stjórnun",
+                            "Skanna reikninga",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF2E7D32)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
+                        
+                        Spacer(modifier = Modifier.height(20.dp))
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        // Main scanning buttons
+                        Button(
+                            onClick = onScan,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            // YFIRLIT button with enhanced design
-                            Button(
-                                onClick = onOverview,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(60.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF2E7D32)
-                                ),
-                                shape = RoundedCornerShape(20.dp),
-                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
-                            ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Icon(
-                                        Icons.Default.Assessment,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(24.dp),
-                                        tint = Color.White
-                                    )
-                                    Text(
-                                        "YFIRLIT", 
-                                        fontSize = 13.sp, 
-                                        color = Color.White, 
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-
-                            // SKOÐA REIKNINGA button with enhanced design
-                            Button(
-                                onClick = onNotes,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(60.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF1976D2)
-                                ),
-                                shape = RoundedCornerShape(20.dp),
-                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
-                            ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Icon(
-                                        Icons.Default.Receipt,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(24.dp),
-                                        tint = Color.White
-                                    )
-                                    Text(
-                                        "REIKNINGA", 
-                                        fontSize = 12.sp, 
-                                        color = Color.White, 
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
+                            Icon(Icons.Default.Camera, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Skanna einn reikning")
+                        }
+                        
+                        Spacer(modifier = Modifier.height(12.dp))
+                        
+                        OutlinedButton(
+                            onClick = onBatchScan,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.CameraAlt, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Fjöldaskanning (Pro)")
                         }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // Excel export button with animation
-            AnimatedVisibility(
-                visible = showExportActions,
-                enter = slideInVertically(
-                    initialOffsetY = { 300 },
-                    animationSpec = tween(600, delayMillis = 500, easing = FastOutSlowInEasing)
-                ) + fadeIn(animationSpec = tween(600, delayMillis = 500))
+            // Secondary actions in elegant grid
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color.White.copy(alpha = 0.95f)
+                ),
+                shape = RoundedCornerShape(20.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
             ) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color.White.copy(alpha = 0.95f)
-                    ),
-                    shape = RoundedCornerShape(16.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp)
+                    Text(
+                        "Reikninga stjórnun",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF2E7D32)
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text(
-                            "📤 Flytja út gögn",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF2E7D32),
-                            modifier = Modifier.padding(bottom = 12.dp)
-                        )
-                        
+                        // Overview button
                         OutlinedButton(
-                            onClick = onSendExcel,
+                            onClick = onOverview,
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .height(52.dp),
+                                .weight(1f)
+                                .height(48.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = Color(0xFF2E7D32)
                             ),
-                            shape = RoundedCornerShape(16.dp)
+                            shape = RoundedCornerShape(12.dp)
                         ) {
                             Icon(
-                                Icons.Default.FileUpload,
+                                Icons.Default.Assessment,
                                 contentDescription = null,
-                                modifier = Modifier.size(22.dp)
+                                modifier = Modifier.size(20.dp)
                             )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                "Senda Excel skrá", 
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Medium
-                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Yfirlit", fontSize = 14.sp)
                         }
+
+                        // View invoices button
+                        OutlinedButton(
+                            onClick = onNotes,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = Color(0xFF2E7D32)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Receipt,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Skoða", fontSize = 14.sp)
+                        }
+                    }
+
+                    // Excel export button
+                    OutlinedButton(
+                        onClick = onSendExcel,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Color(0xFF2E7D32)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.FileUpload,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Senda Excel skrá", fontSize = 14.sp)
                     }
                 }
             }
