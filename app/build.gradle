@@ -1,18 +1,17 @@
 apply plugin: 'com.android.application'
 apply plugin: 'org.jetbrains.kotlin.android'
 apply plugin: 'com.google.gms.google-services'
-apply plugin: 'kotlin-kapt'
 
 android {
-    namespace 'io.github.saeargeir.skanniapp'
+    namespace 'is.iceveflausnir.skanniapp'
     compileSdk 34
 
     defaultConfig {
-        applicationId 'io.github.saeargeir.skanniapp'
+        applicationId 'is.iceveflausnir.skanniapp'
         minSdk 26
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode 235
+        versionName "2.3.5"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -94,11 +93,6 @@ dependencies {
 
     // ML Kit Text Recognition (Latin)
     implementation 'com.google.mlkit:text-recognition:16.0.0'
-    
-    // Room Database for better persistence
-    implementation 'androidx.room:room-runtime:2.6.1'
-    implementation 'androidx.room:room-ktx:2.6.1'
-    kapt 'androidx.room:room-compiler:2.6.1'
     
     // Coroutines for async operations
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'

@@ -63,7 +63,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:368139082393:android:ec07e6e42756f90f8d7608",
         "android_client_info": {
-          "package_name": "io.github.saeargeir.skanniapp"
+          "package_name": "is.iceveflausnir.skanniapp"
         }
       },
       "oauth_client": [
@@ -71,7 +71,7 @@
           "client_id": "368139082393-3f0i5et1ctr5h4tu2sdcn7oc92q8g3bh.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "io.github.saeargeir.skanniapp",
+            "package_name": "is.iceveflausnir.skanniapp",
             "certificate_hash": "489d7e7bfe6d4d93b3d3d1f7c03fd7d2678a0b46"
           }
         },
@@ -79,7 +79,7 @@
           "client_id": "368139082393-eo37c589tii7dqu2thq30lkpmik1rv53.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "io.github.saeargeir.skanniapp",
+            "package_name": "is.iceveflausnir.skanniapp",
             "certificate_hash": "d96636a1ae8ed5d6d226a7f58d096165fc571a4d"
           }
         },
@@ -87,7 +87,7 @@
           "client_id": "368139082393-ioqn8pftp5pnm9p4backlu2cbskahin6.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "io.github.saeargeir.skanniapp",
+            "package_name": "is.iceveflausnir.skanniapp",
             "certificate_hash": "dc3c32166862a6283a41249b10fb998dac9edb99"
           }
         },
